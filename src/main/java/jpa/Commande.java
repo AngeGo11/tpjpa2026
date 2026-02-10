@@ -12,23 +12,15 @@ public class Commande {
     private Long id;
     private LocalDateTime date;
     private Double montantTotal;
-
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable=false)
     private Users acheteur;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private StatutCommande statut;
-
-
-// Une commande peut contenir plusieurs billets
-    @OneToMany(mappedBy = "commande", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Billets> billets = new ArrayList<>();
 
 
 
 
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable=false)
     public Users getAcheteur() {
         return acheteur;
     }
@@ -67,6 +59,8 @@ public class Commande {
         this.montantTotal = montantTotal;
     }
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     public StatutCommande getStatut() {
         return statut;
     }
@@ -75,6 +69,8 @@ public class Commande {
         this.statut = statut;
     }
 
+    // Une commande peut contenir plusieurs billets
+    @OneToMany(mappedBy = "commande", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<Billets> getBillets() {
         return billets;
     }

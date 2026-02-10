@@ -45,13 +45,13 @@ public class JpaTest {
 
 
 
-		// TypeTicket
+		/* TypeTicket
 		if (manager.createQuery("SELECT t FROM TypeTicket t", TypeTicket.class).getResultList().isEmpty()) {
 			manager.persist(new TypeTicket("Standard"));
 			manager.persist(new TypeTicket("VIP"));
 			manager.persist(new TypeTicket("Early Bird"));
 			System.out.println("TypeTicket : 3 types créés.");
-		}
+		}*/
 
 
 	}
