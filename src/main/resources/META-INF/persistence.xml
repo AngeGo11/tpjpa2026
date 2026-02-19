@@ -42,7 +42,15 @@
 
 	<persistence-unit name="mysql">
 		<provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
- 
+
+		<class>jpa.Artiste</class>
+		<class>jpa.Events</class>
+		<class>jpa.Users</class>
+		<class>jpa.Organizer</class>
+		<class>jpa.Commande</class>
+		<class>jpa.Billets</class>
+		<class>jpa.TypeBillet</class>
+
 		<properties>
 			<property name="jakarta.persistence.jdbc.driver"
 				value="com.mysql.cj.jdbc.Driver" />

@@ -1,0 +1,5 @@
+servlet\AjouterArtiste.class
+servlet\AfficherArtistes.class
+servlet\AjouterEvent.class
+servlet\MyServlet.class
+servlet\AfficherEvents.class

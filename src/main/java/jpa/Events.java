@@ -46,7 +46,7 @@ public class Events {
         this.id = id;
     }
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     public String getNom() {
         return nom;
     }
@@ -99,7 +99,7 @@ public class Events {
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_organizer", nullable = false)
+    @JoinColumn(name = "id_organizer", nullable = true)
     public Organizer getOrganizer() {
         return organizer;
     }
@@ -109,7 +109,7 @@ public class Events {
     }
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = true)
     public GenreMusical getGenreMusical() {
         return genreMusical;
     }
@@ -118,11 +118,8 @@ public class Events {
         this.genreMusical = genreMusical;
     }
 
-
-    // 1. L'Artiste Principal (Relation simple)
-    // C'est OBLIGATOIRE (nullable = false), il faut au moins une star.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "main_artist_id", nullable = false)
+    @JoinColumn(name = "main_artist_id")
     public Artiste getArtistePrincipal() {
         return artistePrincipal;
     }
@@ -131,8 +128,6 @@ public class Events {
         this.artistePrincipal = artistePrincipal;
     }
 
-    // 2. Les Invités (Relation ManyToMany unidirectionnelle)
-    // C'est optionnel (on peut ne pas avoir d'invités).
     @ManyToMany
     @JoinTable(
             name="event_guests", //Crée la table d'association
