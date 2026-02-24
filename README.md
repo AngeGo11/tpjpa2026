@@ -64,10 +64,49 @@ Ces relations sont en cascade (CascadeType.ALL) et orphelin-suppression (orphanR
 ## 3. Diagramme de Classes
 
 Le diagramme ci-dessous représente les entités JPA principales et leurs relations (cardinalités et héritage).
-(À expliquer)
+
+**Entités** : sept classes sont représentées — `Users`, `Organizer`, `Artiste`, `Events`, `TypeBillet`, `Commande`, `Billets`. Chaque entité affiche ses attributs principaux (identifiant, champs métier, énumérations).
+
+**Héritage** : une flèche de spécialisation relie `Organizer` à `Users` (héritage par jointure) : tout organisateur est un utilisateur, avec des attributs et des associations supplémentaires.
+
+**Relations et cardinalités** :
+- **Users 1 → n Commande** : un utilisateur (acheteur) a plusieurs commandes ; chaque commande a un seul acheteur.
+- **Organizer 1 → n Events** : un organisateur gère plusieurs événements ; chaque événement a un seul organisateur.
+- **Events n → 1 Artiste** (artiste principal) : chaque événement a un artiste principal ; un artiste peut être tête d’affiche de plusieurs événements.
+- **Events n ↔ n Artiste** (invités) : un événement peut avoir plusieurs invités, un artiste peut être invité à plusieurs événements (table d’association `event_guests`).
+- **TypeBillet n → 1 Events** : chaque type de billet est rattaché à un événement ; un événement a plusieurs types de billets.
+- **Commande 1 → n Billets** : une commande contient plusieurs billets ; chaque billet appartient à une commande.
+- **Billets n → 1 TypeBillet** : chaque billet est d’un type donné ; un type de billet peut être associé à plusieurs billets.
+
+La lecture des flèches et des multiplicités (1, n) permet de vérifier la cohérence du modèle avec les relations JPA (OneToMany, ManyToOne, ManyToMany) décrites en section 2.
+
 ---
 
-## 4. Endpoints de l’API (Backend)
+## 4. Couche DAO (`jpa.dao`)
+
+La couche **DAO** (Data Access Object) assure l’accès aux données et isole la persistance JPA du reste de l’application.
+
+- **`IGenericDao<K, T>`** : interface générique avec les opérations CRUD.
+- **`AbstractJpaDao<K, T>`** : implémentation générique qui utilise un `EntityManager` pour exécuter les requêtes JPA.
+- **`EntityManagerHelper`** : fournit un `EntityManager` à partir de l’unité de persistance `dev`.
+- **DAOs concrets** : une classe par entité principale — `ArtisteDAO`, `BilletsDAO`, `CommandeDAO`, `EventsDAO`, `OrganizerDAO`, `TypeBilletDAO`, `UsersDAO`. Chacune étend `AbstractJpaDao`. Certaines comportent des méthodes métier en plus.
+
+Les ressources REST instancient ces DAOs pour charger ou modifier les entités, puis convertissent les entités en DTO pour la réponse HTTP.
+
+---
+
+## 5. Couche REST (`jpa.rest`)
+
+La couche **REST** expose l’API HTTP. Elle est organisée dans le package **`jpa.rest`**.
+
+- **Point d’entrée** : `RestApplication` (JAX-RS `Application`) déclare le préfixe **`/api`** et enregistre toutes les classes de ressources et Swagger (`OpenApiResource`, `SwaggerResource`). Le serveur est lancé par `RestServer` (Resteasy sur Undertow, port 8080).
+- **Ressources (endpoints)** : une classe par ressource métier. Les réponses sont construites à partir des **DTO** (pas d’exposition directe des entités JPA).
+- **DTO** : les objets échangés avec le client. Ils contiennent des champs et des identifiants pour les relations et sont sérialisés en JSON ou XML . Les ressources font la conversion entité ↔ DTO.
+- **Documentation** : `SwaggerResource` sert la page Swagger UI ; l’API OpenAPI est exposée en JSON (ex. `/openapi.json`) pour une documentation interactive des endpoints.
+
+---
+
+## 6. Endpoints de l’API (Backend)
 
 L’API est exposée sous le préfixe **`/api`**. Les ressources sont implémentées en **JAX-RS** (Resteasy). Format de réponse : JSON et/ou XML selon les ressources. Aucune authentification ni rôles ne sont gérés dans le code actuel.
 
@@ -118,7 +157,7 @@ L’API est exposée sous le préfixe **`/api`**. Les ressources sont implément
 
 ---
 
-## 5. Technologies Utilisées
+## 7. Technologies Utilisées
 
 - **Java 11** (Maven compiler source/target)
 - **Maven** (build et gestion des dépendances)
