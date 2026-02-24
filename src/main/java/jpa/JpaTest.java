@@ -3,8 +3,7 @@ package jpa;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
-
-import java.util.List;
+import jpa.dao.EntityManagerHelper;
 
 public class JpaTest {
 
@@ -18,7 +17,7 @@ public class JpaTest {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-			EntityManager manager = EntityManagerHelper.getEntityManager();
+        EntityManager manager = EntityManagerHelper.getEntityManager();
 
 		JpaTest test = new JpaTest(manager);
 
