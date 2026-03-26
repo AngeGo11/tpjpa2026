@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 @Tag(name="Utilisateurs", description= "Gestion des utilisateurs")
 public class UsersResource {
 
+    // Marche
     @GET
     @Path("/{userId}")
     @Operation(summary = "Récupérer un utilisateur par son ID", description = "Retourne un utilisateur à partir de son ID")
@@ -40,8 +41,9 @@ public class UsersResource {
         return dto;
     }
 
+    // À revoir
     @GET
-    @Path("/users/{userId}/commandes")
+    @Path("/{userId}/commandes")
     @Operation(summary = "Récupérer les commandes d'un utilisateur par son ID", description = "Retourne toutes les commandes de l'utilisateur dont l'id est passé en paramètre")
     @ApiResponse(responseCode = "200", description = "Commande trouvé")
     @ApiResponse(responseCode = "404",description = "Commande non trouvé")
@@ -65,6 +67,7 @@ public class UsersResource {
 
     }
 
+    // Marche
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -72,8 +75,6 @@ public class UsersResource {
     @ApiResponse(responseCode = "200", description = "Utilisateurs trouvé")
     @ApiResponse(responseCode = "404",description = "Utilisateurs non trouvé")
     public List<UsersDTO> listUsers()  {
-      /*  UsersDAO dao = new UsersDAO();
-        return (UsersDTO) dao.findAll(); */
 
         return new UsersDAO().findAll().stream()
                     .map(user -> {
@@ -86,6 +87,7 @@ public class UsersResource {
     }
 
 
+    // Marche
     @POST
     @Consumes("application/json")
     @Operation(summary = "Ajout d'utilisateurs", description = "Permet d'ajouter un utilisateur et retourne un objet de type 'Response'")

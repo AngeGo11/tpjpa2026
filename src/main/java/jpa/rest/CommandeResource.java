@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 @Produces({"application/json", "application/xml"})
 public class CommandeResource {
 
+    // Marche
     @GET
     @Path("/{commandeId}")
     public CommandeDTO getCommandeById(@PathParam("commandeId") Long commandeId)  {
@@ -40,6 +41,7 @@ public class CommandeResource {
         return dto;
     }
 
+    // Marche
     @GET
     @Path("/{commandeId}/billets")
     public List<BilletsDTO> getBilletsByCommandeId(@PathParam("commandeId") Long commandeId) {
@@ -61,6 +63,7 @@ public class CommandeResource {
     }
 
 
+    // Marche
     @DELETE
     @Path("/{commandeId}")
     public Response deleteCommandeById(@PathParam("commandeId") Long commandeId) {
@@ -74,6 +77,7 @@ public class CommandeResource {
     }
 
 
+    // Marche
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -94,6 +98,7 @@ public class CommandeResource {
     }
 
 
+    // Marche
     @POST
     @Consumes("application/json")
     public Response addCommande(

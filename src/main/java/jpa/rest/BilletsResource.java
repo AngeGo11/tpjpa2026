@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 @Produces({"application/json", "application/xml"})
 public class BilletsResource {
 
+    // Marche
     @GET
     @Path("/{billetId}")
     public BilletsDTO getBilletById(@PathParam("billetId") Long billetId)  {
@@ -38,8 +39,9 @@ public class BilletsResource {
         return dto;
     }
 
+    // Marche
     @GET
-    @Path("/billets/{billetId}/type_billet")
+    @Path("/{billetId}/type_billet")
     public TypeBilletDTO getTypeById(@PathParam("billetId") Long billetId)  {
         BilletsDAO dao = new BilletsDAO();
         Billets entity = dao.findOne(billetId);
@@ -66,6 +68,8 @@ public class BilletsResource {
         return dto;
     }
 
+
+    // Marche
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -80,6 +84,7 @@ public class BilletsResource {
     }
 
 
+    // Marche
     @POST
     @Consumes("application/json")
     public Response addBillets(

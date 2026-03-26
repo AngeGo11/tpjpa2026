@@ -8,8 +8,8 @@ import jpa.model.Events;
 @XmlRootElement(name = "TypeBillet")
 public class TypeBilletDTO {
     private Long id;
-    private Long eventId;  // pour POST : ID de l'événement
-    private Events event;  // pour GET : objet complet (optionnel)
+    private Long eventId;
+    private Events event;
     private Type type;
     private Double prix;
     private Integer stock;
