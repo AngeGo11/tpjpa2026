@@ -2,6 +2,8 @@ package jpa.rest;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;
+import java.util.List;
+import java.util.stream.Collectors;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.NotFoundException;
@@ -42,9 +44,14 @@ public class ArtisteResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public ArtisteDTO getArtiste()  {
-        ArtisteDAO dao = new ArtisteDAO();
-        return (ArtisteDTO) dao.findAll();
+    public List<ArtisteDTO> listArtiste() {
+        return new ArtisteDAO().findAll().stream()
+                .map(artiste -> {
+                    ArtisteDTO dto = new ArtisteDTO(artiste.getNomArtiste(), artiste.getPhotoUrl());
+                    dto.setId(artiste.getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -63,4 +70,5 @@ public class ArtisteResource {
                 .build()).entity(dto).build();
 
     }
+
 }

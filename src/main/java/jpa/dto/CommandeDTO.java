@@ -1,14 +1,16 @@
 package jpa.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 
-import java.time.LocalDateTime;
+import java.util.Date;
 
 @XmlRootElement(name = "Commande")
 public class CommandeDTO {
     private Long id;
-    private LocalDateTime date;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Europe/Paris")
+    private Date date;
     private Double montantTotal;
     private Long acheteurId;
     private StatutCommande statut;
@@ -17,7 +19,7 @@ public class CommandeDTO {
     public CommandeDTO() {
     }
 
-    public CommandeDTO(LocalDateTime date, Double montantTotal, Long acheteurId, StatutCommande statut) {
+    public CommandeDTO(Date date, Double montantTotal, Long acheteurId, StatutCommande statut) {
         this.date = date;
         this.montantTotal = montantTotal;
         this.acheteurId = acheteurId;
@@ -35,11 +37,11 @@ public class CommandeDTO {
     }
 
     @XmlElement(name = "date")
-    public LocalDateTime getDate() {
+    public Date getDate() {
         return date;
     }
 
-    public void setDate(LocalDateTime date) {
+    public void setDate(Date date) {
         this.date = date;
     }
 

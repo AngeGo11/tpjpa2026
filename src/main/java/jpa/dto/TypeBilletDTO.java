@@ -1,5 +1,6 @@
 package jpa.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jpa.model.Events;
@@ -42,7 +43,7 @@ public class TypeBilletDTO {
         this.eventId = eventId;
     }
 
-    @XmlElement(name = "event")
+    @JsonIgnore
     public Events getEvent() {
         return event;
     }

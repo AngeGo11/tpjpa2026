@@ -15,6 +15,7 @@ import jpa.model.Events;
 import jpa.model.TypeBillet;
 
 import java.sql.Time;
+import java.util.List;
 import java.util.stream.Collectors;
 
 
@@ -31,8 +32,9 @@ public class TypeBilletResource {
             throw new NotFoundException();
         }
         TypeBilletDTO.Type typeDto = TypeBilletDTO.Type.valueOf(entity.getType().name());
-        TypeBilletDTO dto = new TypeBilletDTO(entity.getEvent(), typeDto, entity.getPrix(), entity.getStock());
+        TypeBilletDTO dto = new TypeBilletDTO(null, typeDto, entity.getPrix(), entity.getStock());
         dto.setId(typeId);
+        dto.setEventId(entity.getEvent().getId());
         return dto;
     }
 
@@ -52,10 +54,10 @@ public class TypeBilletResource {
             throw new NotFoundException();
         }
 
-        return toEventsDomain(event);
+        return toEventsDTO(event);
     }
 
-    private EventsDTO toEventsDomain(Events event) {
+    private EventsDTO toEventsDTO(Events event) {
         EventsDTO dto = new EventsDTO();
         dto.setId(event.getId());
         dto.setNom(event.getNom());
@@ -79,9 +81,17 @@ public class TypeBilletResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public TypeBilletDTO getType()  {
+    public List<TypeBilletDTO> listTypeBillet()  {
         TypeBilletDAO dao = new TypeBilletDAO();
-        return (TypeBilletDTO) dao.findAll();
+        return dao.findAll().stream()
+                .map(typeBillet -> {
+                    TypeBilletDTO.Type type = TypeBilletDTO.Type.valueOf(typeBillet.getType().name());
+                    TypeBilletDTO dto = new TypeBilletDTO(null, type, typeBillet.getPrix(), typeBillet.getStock());
+                    dto.setId(typeBillet.getId());
+                    dto.setEventId(typeBillet.getEvent().getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -100,7 +110,7 @@ public class TypeBilletResource {
         TypeBillet entity = new TypeBillet(event, type, typeDto.getPrix(), typeDto.getStock());
         TypeBilletDAO dao = new TypeBilletDAO();
         dao.save(entity);
-        TypeBilletDTO dto = new TypeBilletDTO(entity.getEvent(), typeDto.getType(), entity.getPrix(), entity.getStock());
+        TypeBilletDTO dto = new TypeBilletDTO(null, typeDto.getType(), entity.getPrix(), entity.getStock());
         dto.setId(entity.getId());
         dto.setEventId(entity.getEvent().getId());
         return Response.created(

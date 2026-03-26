@@ -10,6 +10,9 @@ import jpa.dto.EventsDTO;
 import jpa.dto.OrganizerDTO;
 import jpa.model.Organizer;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Path("organizer")
 @Produces({"application/json", "application/xml"})
 public class OrganizerResource {
@@ -24,6 +27,8 @@ public class OrganizerResource {
         }
         OrganizerDTO dto = new OrganizerDTO(entity.getNomOrganisation());
         dto.setId(entity.getId());
+        dto.setNom(entity.getNom());
+        dto.setEmail(entity.getEmail());
         return dto;
     }
 
@@ -60,9 +65,16 @@ public class OrganizerResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public OrganizerDTO getOrganizer()  {
-        OrganizerDAO dao = new OrganizerDAO();
-        return (OrganizerDTO) dao.findAll();
+    public List<OrganizerDTO> listOrganizer()  {
+        return new OrganizerDAO().findAll().stream()
+                .map(organizer -> {
+                    OrganizerDTO dto = new OrganizerDTO(organizer.getNomOrganisation());
+                    dto.setId(organizer.getId());
+                    dto.setNom(organizer.getNom());
+                    dto.setEmail(organizer.getEmail());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -72,11 +84,15 @@ public class OrganizerResource {
             @Parameter(description = "Organizer object that needs to be added to the store", required = true) OrganizerDTO organizer) {
         jpa.model.Organizer entity = new jpa.model.Organizer(organizer.getNomOrganisation());
         OrganizerDAO dao = new OrganizerDAO();
+        entity.setNom(organizer.getNom());
+        entity.setEmail(organizer.getEmail());
         dao.save(entity);
         OrganizerDTO dto = new OrganizerDTO(entity.getNomOrganisation());
         dto.setId(entity.getId());
+        dto.setNom(entity.getNom());
+        dto.setEmail(entity.getEmail());
         return Response.created(
-                UriBuilder.fromResource(ArtisteResource.class)
+                UriBuilder.fromResource(OrganizerResource.class)
                         .path(String.valueOf(entity.getId()))
                         .build()).entity(dto).build();
     }

@@ -3,8 +3,8 @@ package jpa.model;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -16,7 +16,7 @@ import java.util.List;
 @Table(name = "commandes")
 public class Commande implements Serializable {
     private Long id;
-    private LocalDateTime date;
+    private Date date;
     private Double montantTotal;
     private Users acheteur;
     private StatutCommande statut;
@@ -49,11 +49,12 @@ public class Commande implements Serializable {
         this.id = id;
     }
 
-    public LocalDateTime getDate() {
+    @Temporal(TemporalType.TIMESTAMP)
+    public Date getDate() {
         return date;
     }
 
-    public void setDate(LocalDateTime date) {
+    public void setDate(Date date) {
         this.date = date;
     }
 

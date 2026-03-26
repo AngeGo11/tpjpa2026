@@ -16,7 +16,6 @@ public class RestApplication extends Application {
     public Set<Class<?>> getClasses() {
         final Set<Class<?>> resources = new HashSet<>();
 
-
         // SWAGGER endpoints
         resources.add(OpenApiResource.class);
         resources.add(SwaggerResource.class);

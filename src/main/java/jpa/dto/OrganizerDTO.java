@@ -11,8 +11,10 @@ public class OrganizerDTO {
     private String nomOrganisation;
 
     public OrganizerDTO(String nomOrganisation) {
-        this.nom = nomOrganisation;
+        this.nomOrganisation = nomOrganisation;
     }
+
+     public OrganizerDTO() {}
 
     @XmlElement(name = "id")
     public Long getId() {

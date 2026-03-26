@@ -14,6 +14,7 @@ public class Events implements Serializable {
     private Long id;
     private String nom;
     private String lieu;
+    private String image;
     private Date date;
     private Time heure;
     private String description;
@@ -28,9 +29,10 @@ public class Events implements Serializable {
     }
 
 
-    public Events(String nom, String lieu, Date date, Time heure, String description, Integer nbPlaces) {
+    public Events(String nom, String image, String lieu,  Date date, Time heure, String description, Integer nbPlaces) {
         this.nom = nom;
         this.lieu = lieu;
+        this.image = image;
         this.date = date;
         this.heure = heure;
         this.description = description;
@@ -54,6 +56,15 @@ public class Events implements Serializable {
 
     public void setNom(String nom) {
         this.nom = nom;
+    }
+
+    @Column(length = 2000)
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
     }
 
     public String getLieu() {

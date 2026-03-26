@@ -13,6 +13,7 @@ import java.util.List;
 public class EventsDTO {
     private Long id;
     private String nom;
+    private String image;
     private String lieu;
     private Date date;
     private Time heure;
@@ -26,8 +27,9 @@ public class EventsDTO {
     public EventsDTO() {
     }
 
-    public EventsDTO(String nom, String lieu, Date date, Time heure, String description, Integer nbPlaces, Long organizerId, GenreMusical genreMusical, Long artistePrincipalId, List<Long> inviteIds) {
+    public EventsDTO(String nom, String image, String lieu, Date date, Time heure, String description, Integer nbPlaces, Long organizerId, GenreMusical genreMusical, Long artistePrincipalId, List<Long> inviteIds) {
         this.nom = nom;
+        this.image = image;
         this.lieu = lieu;
         this.date = date;
         this.heure = heure;
@@ -55,6 +57,15 @@ public class EventsDTO {
 
     public void setNom(String nom) {
         this.nom = nom;
+    }
+
+    @XmlElement(name = "image")
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
     }
 
     @XmlElement(name = "lieu")

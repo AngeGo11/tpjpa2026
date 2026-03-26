@@ -8,11 +8,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
+import jpa.dao.BilletsDAO;
 import jpa.dao.UsersDAO;
+import jpa.dto.BilletsDTO;
 import jpa.dto.CommandeDTO;
 import jpa.dto.UsersDTO;
 import jpa.model.Commande;
 import jpa.model.Users;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Path("users")
 @Produces({"application/json", "application/xml"})
@@ -66,16 +71,25 @@ public class UsersResource {
     @Operation(summary = "Récupérer la liste des utilisateurs", description = "Retourne la liste complètes de tous les utilisateurs")
     @ApiResponse(responseCode = "200", description = "Utilisateurs trouvé")
     @ApiResponse(responseCode = "404",description = "Utilisateurs non trouvé")
-    public UsersDTO getUsers()  {
-        UsersDAO dao = new UsersDAO();
-        return (UsersDTO) dao.findAll();
+    public List<UsersDTO> listUsers()  {
+      /*  UsersDAO dao = new UsersDAO();
+        return (UsersDTO) dao.findAll(); */
+
+        return new UsersDAO().findAll().stream()
+                    .map(user -> {
+                        UsersDTO dto = new UsersDTO(user.getNom(), user.getEmail(), user.getMdp());
+                        dto.setId(user.getId());
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
     }
 
 
     @POST
     @Consumes("application/json")
     @Operation(summary = "Ajout d'utilisateurs", description = "Permet d'ajouter un utilisateur et retourne un objet de type 'Response'")
-    @ApiResponse(responseCode = "200", description = "Commande trouvé")
+    @ApiResponse(responseCode = "201", description = "Commande trouvé")
     @ApiResponse(responseCode = "404",description = "Commande non trouvé")
     public Response addUser(
             @Parameter(description = "Objet utilisateur qui doit être ajouté à la base", required = true) UsersDTO userDTO) {

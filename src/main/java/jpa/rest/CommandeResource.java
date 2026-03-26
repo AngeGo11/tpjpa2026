@@ -13,6 +13,10 @@ import jpa.dto.CommandeDTO;
 import jpa.model.Commande;
 import jpa.model.Users;
 
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+
 
 @Path("commandes")
 @Produces({"application/json", "application/xml"})
@@ -27,17 +31,33 @@ public class CommandeResource {
             throw new NotFoundException();
         }
 
-       CommandeDTO.StatutCommande statut = CommandeDTO.StatutCommande.valueOf(entity.getStatut().name());
+        CommandeDTO.StatutCommande statut =
+                CommandeDTO.StatutCommande.valueOf(entity.getStatut().name());
 
-        CommandeDTO dto = new CommandeDTO(entity.getDate(), entity.getMontantTotal(), entity.getAcheteur().getId(), statut );
+        CommandeDTO dto = new CommandeDTO(
+                entity.getDate(), entity.getMontantTotal(), entity.getAcheteur().getId(), statut);
         dto.setId(entity.getId());
         return dto;
     }
 
     @GET
-    @Path("/commandes/{commandeId}/billets")
-    public BilletsDTO getBilletByCommandeId(@PathParam("commandeId") Long CommandeId)  {
-        return new BilletsDTO();
+    @Path("/{commandeId}/billets")
+    public List<BilletsDTO> getBilletsByCommandeId(@PathParam("commandeId") Long commandeId) {
+        CommandeDAO dao = new CommandeDAO();
+        Commande commande = dao.findOne(commandeId);
+        if (commande == null) {
+            throw new NotFoundException();
+        }
+        return commande.getBillets().stream()
+                .map(b -> {
+                    BilletsDTO dto = new BilletsDTO(
+                            b.getCodeBarre(),
+                            b.getCommande().getId(),
+                            b.getTypeBillet().getId());
+                    dto.setId(b.getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -57,9 +77,20 @@ public class CommandeResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public CommandeDTO getCommandes()  {
-        CommandeDAO dao = new CommandeDAO();
-        return (CommandeDTO) dao.findAll();
+    public List<CommandeDTO> listCommandes() {
+        return new CommandeDAO().findAll().stream()
+                .map(commande -> {
+                    CommandeDTO.StatutCommande statut =
+                            CommandeDTO.StatutCommande.valueOf(commande.getStatut().name());
+                    CommandeDTO dto = new CommandeDTO(
+                            commande.getDate(),
+                            commande.getMontantTotal(),
+                            commande.getAcheteur().getId(),
+                            statut);
+                    dto.setId(commande.getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -75,7 +106,7 @@ public class CommandeResource {
                     .build();
         }
         Commande entity = new Commande();
-        entity.setDate(commandeDTO.getDate());
+        entity.setDate(new Date());
         entity.setMontantTotal(commandeDTO.getMontantTotal());
         entity.setAcheteur(acheteur);
         entity.setStatut(Commande.StatutCommande.valueOf(commandeDTO.getStatut().name()));

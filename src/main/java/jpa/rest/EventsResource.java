@@ -48,6 +48,7 @@ public class EventsResource {
 
         EventsDTO dto = new EventsDTO(
                 entity.getNom(),
+                entity.getImage(),
                 entity.getLieu(),
                 entity.getDate(),
                 entity.getHeure(),
@@ -105,9 +106,33 @@ public class EventsResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public EventsDTO getEvents()  {
-        EventsDAO dao = new EventsDAO();
-        return (EventsDTO) dao.findAll();
+    public List<EventsDTO> listEvents() {
+        return new EventsDAO().findAll().stream()
+                .map(event -> {
+                    EventsDTO.GenreMusical genreMusical =
+                            EventsDTO.GenreMusical.valueOf(event.getGenreMusical().name());
+
+                    List<Long> inviteIds = event.getInvites() != null
+                            ? event.getInvites().stream().map(Artiste::getId).collect(Collectors.toList())
+                            : Collections.emptyList();
+
+                    EventsDTO dto = new EventsDTO(
+                            event.getNom(),
+                            event.getImage(),
+                            event.getLieu(),
+                            event.getDate(),
+                            event.getHeure(),
+                            event.getDescription(),
+                            event.getNbPlaces(),
+                            event.getOrganizer().getId(),
+                            genreMusical,
+                            event.getArtistePrincipal().getId(),
+                            inviteIds
+                    );
+                    dto.setId(event.getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
@@ -138,6 +163,7 @@ public class EventsResource {
 
         Events entity = new Events();
         entity.setNom(eventDto.getNom());
+        entity.setImage(eventDto.getImage());
         entity.setLieu(eventDto.getLieu());
         entity.setDate(eventDto.getDate());
         entity.setHeure(eventDto.getHeure());
@@ -154,6 +180,7 @@ public class EventsResource {
         List<Long> inviteIds = invites.stream().map(Artiste::getId).collect(Collectors.toList());
         EventsDTO dto = new EventsDTO(
                 entity.getNom(),
+                entity.getImage(),
                 entity.getLieu(),
                 entity.getDate(),
                 entity.getHeure(),

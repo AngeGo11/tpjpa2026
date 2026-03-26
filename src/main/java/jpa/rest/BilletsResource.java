@@ -18,6 +18,9 @@ import jpa.model.Billets;
 import jpa.model.Commande;
 import jpa.model.TypeBillet;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Path("billets")
 @Produces({"application/json", "application/xml"})
 public class BilletsResource {
@@ -57,19 +60,23 @@ public class BilletsResource {
     private TypeBilletDTO toTypeBilletDomain(TypeBillet entity) {
         TypeBilletDTO.Type typeDto = TypeBilletDTO.Type.valueOf(entity.getType().name());
         TypeBilletDTO dto = new TypeBilletDTO(
-                entity.getEvent(), typeDto, entity.getPrix(), entity.getStock());
+                null, typeDto, entity.getPrix(), entity.getStock());
         dto.setId(entity.getId());
+        dto.setEventId(entity.getEvent().getId());
         return dto;
     }
 
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public BilletsDTO getBillets()  {
-        BilletsDAO dao = new BilletsDAO();
-        return (BilletsDTO) dao.findAll();
-
-
+    public List<BilletsDTO> listBillets()  {
+        return new BilletsDAO().findAll().stream()
+                .map(billets -> {
+                    BilletsDTO dto = new BilletsDTO(billets.getCodeBarre(), billets.getCommande().getId(), billets.getTypeBillet().getId());
+                            dto.setId(billets.getId());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
 
