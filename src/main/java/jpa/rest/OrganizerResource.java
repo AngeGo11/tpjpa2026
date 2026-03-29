@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @Produces({"application/json", "application/xml"})
 public class OrganizerResource {
 
-    // Marche
+    
     @GET
     @Path("/{organizerId}")
     public OrganizerDTO getOrganizerById(@PathParam("organizerId") Long organizerId) {
@@ -39,7 +39,7 @@ public class OrganizerResource {
     }
 
 
-    // Marche
+    
     @GET
     @Path("/{organizerId}/events")
     public List<EventsDTO> getEventsByOrganizerId(@PathParam("organizerId") Long organizerId) {
@@ -98,7 +98,7 @@ public class OrganizerResource {
     }
 
 
-    // À revoir
+    
     @DELETE
     @Path("/{organizerId}")
     public Response deleteOrganizerById(@PathParam("organizerId") Long organizerId) {
@@ -112,7 +112,7 @@ public class OrganizerResource {
     }
 
 
-    // Marche
+    
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -129,7 +129,7 @@ public class OrganizerResource {
     }
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     public Response addOrganizer(

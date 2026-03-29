@@ -16,7 +16,7 @@ import jpa.dto.ArtisteDTO;
 @Produces({"application/json", "application/xml"})
 public class ArtisteResource {
 
-    // Marche
+    
     @GET
     @Path("/{artisteId}")
     public ArtisteDTO getArtisteById(@PathParam("artisteId") Long artisteId) {
@@ -30,7 +30,7 @@ public class ArtisteResource {
         return dto;
     }
 
-    // Marche
+    
     @DELETE
     @Path("/{artisteId}")
     public Response deleteArtisteById(@PathParam("artisteId") Long artisteId) {
@@ -43,7 +43,6 @@ public class ArtisteResource {
         return Response.noContent().build();
     }
 
-    //Marche
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -58,7 +57,7 @@ public class ArtisteResource {
     }
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     public Response addArtiste(

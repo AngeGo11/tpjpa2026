@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class TypeBilletResource {
 
 
-    // Marche
+    
     @GET
     @Path("/{typeId}")
     public TypeBilletDTO getTypeById(@PathParam("typeId") Long typeId)  {
@@ -41,7 +41,7 @@ public class TypeBilletResource {
     }
 
 
-    // Marche
+    
     @GET
     @Path("/{typeId}/events")
     public EventsDTO getEventByTypeId(@PathParam("typeId") Long typeId)  {
@@ -80,7 +80,7 @@ public class TypeBilletResource {
 
 
 
-    // Marche
+    
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -98,7 +98,7 @@ public class TypeBilletResource {
     }
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     public Response addTypeBillet(

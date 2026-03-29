@@ -7,11 +7,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
-import jpa.dao.ArtisteDAO;
 import jpa.dao.BilletsDAO;
 import jpa.dao.CommandeDAO;
 import jpa.dao.TypeBilletDAO;
-import jpa.dto.ArtisteDTO;
 import jpa.dto.BilletsDTO;
 import jpa.dto.TypeBilletDTO;
 import jpa.model.Billets;
@@ -25,7 +23,7 @@ import java.util.stream.Collectors;
 @Produces({"application/json", "application/xml"})
 public class BilletsResource {
 
-    // Marche
+    
     @GET
     @Path("/{billetId}")
     public BilletsDTO getBilletById(@PathParam("billetId") Long billetId)  {
@@ -39,7 +37,7 @@ public class BilletsResource {
         return dto;
     }
 
-    // Marche
+    
     @GET
     @Path("/{billetId}/type_billet")
     public TypeBilletDTO getTypeById(@PathParam("billetId") Long billetId)  {
@@ -69,7 +67,7 @@ public class BilletsResource {
     }
 
 
-    // Marche
+    
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -84,7 +82,7 @@ public class BilletsResource {
     }
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     public Response addBillets(

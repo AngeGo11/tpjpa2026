@@ -4,8 +4,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
 import jpa.model.Commande;
-
-import java.util.Collection;
 import java.util.List;
 
 public class CommandeDAO extends AbstractJpaDao<Long, Commande>  {

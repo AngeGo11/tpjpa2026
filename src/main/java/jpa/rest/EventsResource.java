@@ -19,7 +19,6 @@ import jpa.model.Organizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 @Produces({"application/json", "application/xml"})
 public class EventsResource {
 
-    // Marche
+    
     @GET
     @Path("/{eventId}")
     public EventsDTO getEventsById(@PathParam("eventId") Long eventId)  {
@@ -66,7 +65,7 @@ public class EventsResource {
     }
 
 
-    // Marche
+    
     @GET
     @Path("{eventId}/organizer")
     public OrganizerDTO getOrganizerByEventId(@PathParam("eventId") Long eventId) {
@@ -90,7 +89,7 @@ public class EventsResource {
 
 
 
-    // Marche
+    
     @GET
     @Path("/{eventId}/main-artist")
     public ArtisteDTO getMainArtistByEventId(@PathParam("eventId") Long eventId)  {
@@ -112,7 +111,7 @@ public class EventsResource {
         return dto;
     }
 
-    // Marche
+    
     @GET
     @Path("/{eventId}/guest-artist")
     public List<ArtisteDTO> getGuestsByEventId(@PathParam("eventId") Long eventId)  {
@@ -133,7 +132,7 @@ public class EventsResource {
     }
 
 
-    // Marche quand un évènement n'est pas lié : Revoir la suppression en cascade
+
     @DELETE
     @Path("/{eventId}")
     public Response deleteEventById(@PathParam("eventId") Long eventId) {
@@ -146,7 +145,7 @@ public class EventsResource {
         return Response.noContent().build();
     }
 
-    // Marche
+    
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -181,7 +180,7 @@ public class EventsResource {
 
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     public Response addEvent(

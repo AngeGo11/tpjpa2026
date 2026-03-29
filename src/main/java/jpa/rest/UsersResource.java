@@ -2,23 +2,19 @@ package jpa.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.Table;
 import jakarta.ws.rs.core.MediaType;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
-import jpa.dao.BilletsDAO;
 import jpa.dao.CommandeDAO;
 import jpa.dao.UsersDAO;
-import jpa.dto.BilletsDTO;
 import jpa.dto.CommandeDTO;
 import jpa.dto.UsersDTO;
 import jpa.model.Commande;
 import jpa.model.Users;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,7 +23,6 @@ import java.util.stream.Collectors;
 @Tag(name="Utilisateurs", description= "Gestion des utilisateurs")
 public class UsersResource {
 
-    // Marche
     @GET
     @Path("/{userId}")
     @Operation(summary = "Récupérer un utilisateur par son ID", description = "Retourne un utilisateur à partir de son ID")
@@ -44,7 +39,7 @@ public class UsersResource {
         return dto;
     }
 
-    // Marche
+    
     @GET
     @Path("/{userId}/commandes")
     @Operation(summary = "Récupérer les commandes d'un utilisateur par son ID", description = "Retourne toutes les commandes de l'utilisateur dont l'id est passé en paramètre")
@@ -82,7 +77,7 @@ public class UsersResource {
 
     }
 
-    // Marche
+    
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
@@ -102,7 +97,7 @@ public class UsersResource {
     }
 
 
-    // Marche
+    
     @POST
     @Consumes("application/json")
     @Operation(summary = "Ajout d'utilisateurs", description = "Permet d'ajouter un utilisateur et retourne un objet de type 'Response'")
