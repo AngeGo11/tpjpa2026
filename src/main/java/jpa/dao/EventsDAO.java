@@ -13,12 +13,21 @@ public class EventsDAO extends AbstractJpaDao<Long, Events> {
     }
 
 
-// Requête Criteria pour récupérer les événements par genre musical
+    // Requête Criteria pour récupérer les événements par genre musical
     public List<Events> findEventsByGenre(Events.GenreMusical genre){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Events> cq = cb.createQuery(Events.class);
         Root<Events> root = cq.from(Events.class);
         cq.select(root).where(cb.equal(root.get("genreMusical"), genre));
+        return entityManager.createQuery(cq).getResultList();
+    }
+
+    // Requête Criteria pour récupérer tous les événements
+    public List<Events> getEvents(){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Events> cq = cb.createQuery(Events.class);
+        Root<Events> root = cq.from(Events.class);
+        cq.select(root);
         return entityManager.createQuery(cq).getResultList();
     }
 }

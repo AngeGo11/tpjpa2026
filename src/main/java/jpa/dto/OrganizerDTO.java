@@ -7,6 +7,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 public class OrganizerDTO {
     private Long id;
     private String nom;
+    private String mdp;
     private String email;
     private String nomOrganisation;
 
@@ -51,4 +52,9 @@ public class OrganizerDTO {
     public void setNomOrganisation(String nomOrganisation) {
         this.nomOrganisation = nomOrganisation;
     }
+
+    public String getMdp() { return mdp; }
+
+    public void setMdp(String mdp) { this.mdp = mdp; }
+
 }

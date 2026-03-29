@@ -9,7 +9,7 @@ public class UsersDTO {
     private Long id;
     private String nom;
     private String email;
-    private String mdp;  // pour la création (POST) uniquement ; ne pas renvoyer en GET
+    private String mdp;
 
     public UsersDTO() {
     }

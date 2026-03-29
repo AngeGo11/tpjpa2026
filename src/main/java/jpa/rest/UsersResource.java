@@ -9,6 +9,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import jpa.dao.BilletsDAO;
+import jpa.dao.CommandeDAO;
 import jpa.dao.UsersDAO;
 import jpa.dto.BilletsDTO;
 import jpa.dto.CommandeDTO;
@@ -16,6 +17,8 @@ import jpa.dto.UsersDTO;
 import jpa.model.Commande;
 import jpa.model.Users;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,28 +44,40 @@ public class UsersResource {
         return dto;
     }
 
-    // À revoir
+    // Marche
     @GET
     @Path("/{userId}/commandes")
     @Operation(summary = "Récupérer les commandes d'un utilisateur par son ID", description = "Retourne toutes les commandes de l'utilisateur dont l'id est passé en paramètre")
-    @ApiResponse(responseCode = "200", description = "Commande trouvé")
-    @ApiResponse(responseCode = "404",description = "Commande non trouvé")
-    public CommandeDTO getCommandeByUserId(@PathParam("userId") Long userId)  {
+    @ApiResponse(responseCode = "200", description = "Commande trouvée pour cet utilisateur")
+    @ApiResponse(responseCode = "404",description = "Commande non trouvée pour cet utilisateur")
+    public List<CommandeDTO> getCommandesByUserId(@PathParam("userId") Long userId)  {
         UsersDAO dao = new UsersDAO();
         jpa.model.Users entity = dao.findOne(userId);
         if (entity == null) {
             throw new NotFoundException();
         }
 
-        Commande commande = (Commande) entity.getCommandes();
-        CommandeDTO dto = new CommandeDTO();
-        dto.setId(commande.getId());
-        dto.setDate(commande.getDate());
-        dto.setMontantTotal(commande.getMontantTotal());
+        CommandeDAO daoCommande = new CommandeDAO();
+        List<Commande> allCommande = daoCommande.getCommandesByUser(userId);
 
-        CommandeDTO.StatutCommande statut = CommandeDTO.StatutCommande.valueOf(commande.getStatut().name());
-        dto.setStatut(statut);
-        return dto;
+        if  (allCommande == null) {
+            throw new NotFoundException();
+        }
+
+        List<CommandeDTO> allCommandeForUser = new ArrayList<>();
+        for (Commande commande : allCommande) {
+            CommandeDTO dto = new CommandeDTO();
+            dto.setId(commande.getId());
+            dto.setDate(commande.getDate());
+            dto.setMontantTotal(commande.getMontantTotal());
+            dto.setAcheteurId(commande.getAcheteur().getId());
+            if(commande.getStatut() != null){
+                dto.setStatut(CommandeDTO.StatutCommande.valueOf(commande.getStatut().name()));
+            }
+            allCommandeForUser.add(dto);
+        }
+
+        return allCommandeForUser;
 
 
     }
@@ -91,8 +106,8 @@ public class UsersResource {
     @POST
     @Consumes("application/json")
     @Operation(summary = "Ajout d'utilisateurs", description = "Permet d'ajouter un utilisateur et retourne un objet de type 'Response'")
-    @ApiResponse(responseCode = "201", description = "Commande trouvé")
-    @ApiResponse(responseCode = "404",description = "Commande non trouvé")
+    @ApiResponse(responseCode = "201", description = "Utilisateur ajouté")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout de l'utilisateur")
     public Response addUser(
             @Parameter(description = "Objet utilisateur qui doit être ajouté à la base", required = true) UsersDTO userDTO) {
         Users entity = new Users();

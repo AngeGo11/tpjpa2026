@@ -30,7 +30,7 @@ public class ArtisteResource {
         return dto;
     }
 
-    // Même problème que dans EventsRessource.delete
+    // Marche
     @DELETE
     @Path("/{artisteId}")
     public Response deleteArtisteById(@PathParam("artisteId") Long artisteId) {

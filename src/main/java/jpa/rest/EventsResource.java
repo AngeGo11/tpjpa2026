@@ -19,6 +19,7 @@ import jpa.model.Organizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -45,6 +46,7 @@ public class EventsResource {
         } else {
             inviteIds = Collections.emptyList();
         }
+
 
 
         EventsDTO dto = new EventsDTO(
@@ -85,11 +87,49 @@ public class EventsResource {
     }
 
 
-    // À revoir la méthode
+
+
+
+    // Marche
     @GET
     @Path("/{eventId}/main-artist")
     public ArtisteDTO getMainArtistByEventId(@PathParam("eventId") Long eventId)  {
-        return new ArtisteDTO();
+        EventsDAO dao = new EventsDAO();
+        Events event= dao.findOne(eventId);
+        if (event == null) {
+            throw new NotFoundException();
+        }
+
+        Artiste artistEntity = event.getArtistePrincipal();
+        if (artistEntity == null) {
+            throw new NotFoundException();
+        }
+        ArtisteDTO dto = new ArtisteDTO(artistEntity.getNomArtiste(), artistEntity.getPhotoUrl());
+        dto.setId(artistEntity.getId());
+        dto.setNom(artistEntity.getNomArtiste());
+        dto.setPhotoUrl(artistEntity.getPhotoUrl());
+
+        return dto;
+    }
+
+    // Marche
+    @GET
+    @Path("/{eventId}/guest-artist")
+    public List<ArtisteDTO> getGuestsByEventId(@PathParam("eventId") Long eventId)  {
+        EventsDAO dao = new EventsDAO();
+        Events event = dao.findOne(eventId);
+        if (event == null) {
+            throw new NotFoundException();
+        }
+
+        List<ArtisteDTO> guests = new ArrayList<>();
+        List<Artiste> artistsGuests = event.getInvites();
+
+        for(Artiste artists: artistsGuests) {
+            guests.add(new ArtisteDTO(artists.getNomArtiste(), artists.getPhotoUrl()));
+        }
+
+        return guests;
     }
 
 

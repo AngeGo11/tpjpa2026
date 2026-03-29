@@ -58,10 +58,6 @@ public class TypeBilletResource {
             throw new NotFoundException();
         }
 
-        return toEventsDTO(event);
-    }
-
-    private EventsDTO toEventsDTO(Events event) {
         EventsDTO dto = new EventsDTO();
         dto.setId(event.getId());
         dto.setNom(event.getNom());
@@ -81,6 +77,8 @@ public class TypeBilletResource {
         }
         return dto;
     }
+
+
 
     // Marche
     @GET
