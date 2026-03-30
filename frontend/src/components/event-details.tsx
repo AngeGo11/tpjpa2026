@@ -40,23 +40,7 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
           aria-hidden
         />
         <div className="absolute inset-0 bg-slate-950/65" aria-hidden />
-        <button
-          type="button"
-          onClick={() => setIsSaved((v) => !v)}
-          className={`absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900/40 active:scale-[0.96] md:right-6 md:top-6 ${
-            isSaved
-              ? 'border-festigo/40 bg-white/95 text-festigo shadow-[0_2px_14px_rgba(18,84,132,0.22)] ring-1 ring-festigo/15 hover:bg-white hover:shadow-[0_4px_18px_rgba(18,84,132,0.28)]'
-              : 'border-white/50 bg-white/80 text-gray-600 shadow-[0_2px_12px_rgba(15,23,42,0.12)] ring-1 ring-black/[0.06] hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-festigo hover:shadow-[0_6px_20px_rgba(15,23,42,0.18)]'
-          }`}
-          aria-label={isSaved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          aria-pressed={isSaved}
-        >
-          <Bookmark
-            className={`h-[18px] w-[18px] shrink-0 transition-colors ${isSaved ? 'fill-current' : 'fill-transparent'}`}
-            strokeWidth={2}
-            aria-hidden
-          />
-        </button>
+        
         <div className="relative mx-auto flex h-full min-h-[320px] max-w-7xl flex-col justify-end px-4 pb-10 pt-24 md:min-h-[420px] md:px-6 md:pb-14">
           <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-md">
             <Music className="h-4 w-4 text-white/70" aria-hidden />
