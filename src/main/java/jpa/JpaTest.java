@@ -86,9 +86,9 @@ public class JpaTest {
             System.out.println("Users : déjà présents.");
             return;
         }
-        manager.persist(new Users("Alice Martin", "alice@mail.com", "alice123"));
-        manager.persist(new Users("Bob Leroy", "bob@mail.com", "bob123"));
-        manager.persist(new Users("Claire Petit", "claire@mail.com", "claire123"));
+        manager.persist(new Users("Alice Martin", "alice@mail.com", "alice123", Users.Role.Fan));
+        manager.persist(new Users("Bob Leroy", "bob@mail.com", "bob123",  Users.Role.Fan));
+        manager.persist(new Users("Claire Petit", "claire@mail.com", "claire123",  Users.Role.Fan));
         System.out.println("Users : OK");
 
     }

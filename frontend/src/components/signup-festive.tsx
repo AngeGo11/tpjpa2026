@@ -16,8 +16,8 @@ const fieldInputClass =
 
 export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
 
-const [accountType, setAccountType] = useState<'user' | 'organizer'>('user');
-const isOrganizer = accountType === 'organizer';
+const [accountType, setAccountType] = useState<'Fan' | 'Organizer'>('Fan');
+const isOrganizer = accountType === 'Organizer';
 
 
   const [fullName, setFullName] = useState('');
@@ -74,7 +74,7 @@ const isOrganizer = accountType === 'organizer';
           <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-xl border border-gray-200 bg-slate-100/80 p-1.5">
             <button
               type="button"
-              onClick={() => setAccountType('user')}
+              onClick={() => setAccountType('Fan')}
               className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
                 !isOrganizer
                   ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'

@@ -34,7 +34,7 @@ public class UsersResource {
         if (entity == null) {
             throw new NotFoundException();
         }
-        UsersDTO dto = new UsersDTO(entity.getNom(), entity.getEmail(), entity.getMdp());
+        UsersDTO dto = new UsersDTO(entity.getNom(), entity.getEmail(), entity.getMdp(), entity.getRole());
         dto.setId(entity.getId());
         return dto;
     }
@@ -88,7 +88,7 @@ public class UsersResource {
 
         return new UsersDAO().findAll().stream()
                     .map(user -> {
-                        UsersDTO dto = new UsersDTO(user.getNom(), user.getEmail(), user.getMdp());
+                        UsersDTO dto = new UsersDTO(user.getNom(), user.getEmail(), user.getMdp(), user.getRole());
                         dto.setId(user.getId());
                         return dto;
                     })
@@ -109,11 +109,12 @@ public class UsersResource {
         entity.setNom(userDTO.getNom());
         entity.setEmail(userDTO.getEmail());
         entity.setMdp(userDTO.getMdp());
+        entity.setRole(userDTO.getRole());
 
         UsersDAO usersDAO = new UsersDAO();
         usersDAO.save(entity);
 
-        UsersDTO dto = new UsersDTO(entity.getNom(), entity.getEmail(), entity.getMdp());
+        UsersDTO dto = new UsersDTO(entity.getNom(), entity.getEmail(), entity.getMdp(), entity.getRole());
         dto.setId(entity.getId());
         return Response.created(
                 UriBuilder.fromResource(UsersResource.class)
