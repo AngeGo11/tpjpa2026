@@ -1,0 +1,271 @@
+import React, { useState, type FormEvent } from 'react';
+import { Mail, Lock, ArrowRight, Building2, Quote } from 'lucide-react';
+
+interface LoginFestiveProps {
+  onNavigateToSignup?: () => void;
+  onLoginAsUser?: () => void;
+  onLoginAsOrganizer?: () => void;
+}
+
+const fieldInputClass =
+  'w-full px-4 pt-6 pb-3 border border-gray-200 rounded-xl bg-white text-slate-900 shadow-sm focus:outline-none focus:border-festigo focus:ring-2 focus:ring-festigo/25 transition-all duration-200 peer';
+
+export function LoginFestive({ onNavigateToSignup, onLoginAsUser, onLoginAsOrganizer }: LoginFestiveProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [accountType, setAccountType] = useState<'user' | 'organizer'>('user');
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [organisationName, setOrganisationName] = useState('');
+  const [organisationNameFocused, setOrganisationNameFocused] = useState(false);
+  const isOrganisationNameActive = organisationNameFocused || organisationName.length > 0;
+
+  const isEmailActive = emailFocused || email.length > 0;
+  const isPasswordActive = passwordFocused || password.length > 0;
+  const isOrganizer = accountType === 'organizer';
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (isOrganizer) {
+      onLoginAsOrganizer?.();
+      return;
+    }
+    onLoginAsUser?.();
+  };
+
+  const labelFloating = (active: boolean) =>
+    `absolute left-4 transition-all duration-200 pointer-events-none ${
+      active
+        ? 'top-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500'
+        : 'top-1/2 -translate-y-1/2 text-base text-slate-400'
+    }`;
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 font-sans antialiased lg:flex-row">
+      {/* Mobile: compact brand banner */}
+      <div className="bg-[#125484] px-6 py-5 text-white lg:hidden">
+        <p className="text-lg font-bold tracking-tight">
+          FestiGo<span className="text-white/90">.</span>
+        </p>
+        <p className="mt-0.5 text-sm text-white/80">Gérez vos événements sans effort.</p>
+      </div>
+
+      {/* Form column */}
+      <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:w-[44%] lg:max-w-none lg:px-12 xl:px-16">
+        <div className="festigo-auth-fade-in mx-auto w-full max-w-md">
+          <div className="mb-8 lg:mb-10">
+            <p className="text-lg font-bold tracking-tight text-slate-900 lg:text-xl">
+              FestiGo<span className="text-festigo">.</span>
+            </p>
+            <p className="mt-1 text-sm text-slate-500">Ton passeport pour les concerts</p>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Heureux de vous revoir</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              {isOrganizer
+                ? 'Connecte-toi pour gérer tes événements'
+                : 'Connecte-toi pour obtenir ton pass-concert'}
+            </p>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-xl border border-gray-200 bg-slate-100/80 p-1.5">
+            <button
+              type="button"
+              onClick={() => setAccountType('user')}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                !isOrganizer
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Je suis fan
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountType('organizer')}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                isOrganizer
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Je suis organisateur
+            </button>
+          </div>
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {isOrganizer && (
+              <div className="relative">
+                <input
+                  type="text"
+                  id="organisationName"
+                  value={organisationName}
+                  onChange={(e) => setOrganisationName(e.target.value)}
+                  onFocus={() => setOrganisationNameFocused(true)}
+                  onBlur={() => setOrganisationNameFocused(false)}
+                  className={fieldInputClass}
+                  placeholder=" "
+                />
+                <label htmlFor="organisationName" className={labelFloating(isOrganisationNameActive)}>
+                  Nom de l'organisation
+                </label>
+                <Building2
+                  className={`pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${
+                    organisationNameFocused ? 'text-festigo' : 'text-slate-400'
+                  }`}
+                />
+              </div>
+            )}
+
+            <div className="relative">
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                className={fieldInputClass}
+                placeholder=" "
+              />
+              <label htmlFor="email" className={labelFloating(isEmailActive)}>
+                Adresse email
+              </label>
+              <Mail
+                className={`pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${
+                  emailFocused ? 'text-festigo' : 'text-slate-400'
+                }`}
+              />
+            </div>
+
+            <div className="relative">
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                className={fieldInputClass}
+                placeholder=" "
+              />
+              <label htmlFor="password" className={labelFloating(isPasswordActive)}>
+                Mot de passe
+              </label>
+              <Lock
+                className={`pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${
+                  passwordFocused ? 'text-festigo' : 'text-slate-400'
+                }`}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-festigo focus:ring-2 focus:ring-festigo/30"
+                />
+                <span className="text-sm text-slate-600">Se souvenir de moi</span>
+              </label>
+              <a
+                href="#"
+                className="text-sm font-medium text-festigo transition-colors hover:text-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 rounded"
+              >
+                Mot de passe oublié ?
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-festigo py-3.5 font-semibold text-white shadow-lg shadow-festigo/25 transition-all duration-200 hover:bg-festigo-hover hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+            >
+              <span>
+                {isOrganizer ? "Se connecter en tant qu'organisateur" : 'Se connecter en tant que fan'}
+              </span>
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+            </button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs font-medium uppercase tracking-wider text-slate-400">
+                <span className="bg-slate-50 px-4">ou continue avec</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo/30"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                Google
+              </button>
+              <button
+                type="button"
+                className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo/30"
+              >
+                <svg className="h-5 w-5" fill="#1877F2" viewBox="0 0 24 24" aria-hidden>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                Facebook
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-slate-500">
+            Pas de compte ?{' '}
+            <button
+              type="button"
+              onClick={onNavigateToSignup}
+              className="font-semibold text-festigo transition-colors hover:text-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 rounded"
+            >
+              Créer un compte
+            </button>
+          </p>
+        </div>
+      </div>
+
+      {/* Desktop: branding panel */}
+      <div className="relative hidden min-h-0 flex-1 flex-col justify-between overflow-hidden bg-[#125484] p-12 text-white lg:flex xl:p-16">
+        <div className="relative">
+          <p className="text-2xl font-bold tracking-tight xl:text-3xl">
+            FestiGo<span className="text-white/90">.</span>
+          </p>
+          <p className="mt-3 max-w-md text-lg leading-relaxed text-white/80">
+            Manage your events effortlessly.
+          </p>
+        </div>
+        <div className="relative mt-auto max-w-lg rounded-2xl border border-white/15 bg-white/10 p-8 backdrop-blur-sm">
+          <Quote className="mb-4 h-8 w-8 text-white/70" aria-hidden />
+          <blockquote className="text-lg font-medium leading-relaxed text-white/95">
+            « Enfin une plateforme claire pour nos billetteries et nos équipes terrain. »
+          </blockquote>
+          <p className="mt-4 text-sm text-white/70">— Équipe production, festival partenaire</p>
+        </div>
+      </div>
+    </div>
+  );
+}
