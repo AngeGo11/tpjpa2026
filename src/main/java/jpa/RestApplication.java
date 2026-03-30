@@ -26,6 +26,7 @@ public class RestApplication extends Application {
         resources.add(OrganizerResource.class);
         resources.add(TypeBilletResource.class);
         resources.add(UsersResource.class);
+        resources.add(LoginResource.class);
 
         return resources;
     }
