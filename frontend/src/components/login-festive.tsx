@@ -1,6 +1,8 @@
 import React, { useState, type FormEvent } from 'react';
 import { Mail, Lock, ArrowRight, Building2, Quote } from 'lucide-react';
 
+const affiche1Url = new URL('../../images/login-branding.jpg', import.meta.url).href;
+
 interface LoginFestiveProps {
   onNavigateToSignup?: () => void;
   onLoginAsUser?: () => void;
@@ -250,20 +252,30 @@ export function LoginFestive({ onNavigateToSignup, onLoginAsUser, onLoginAsOrgan
 
       {/* Desktop: branding panel */}
       <div className="relative hidden min-h-0 flex-1 flex-col justify-between overflow-hidden bg-[#125484] p-12 text-white lg:flex xl:p-16">
+        {/* Image de fond (côté droit) */}
+        <img
+          src={affiche1Url}
+          alt="Ambiance de concert"
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="eager"
+        />
+        {/* Overlay pour améliorer la lisibilité */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#081b33]/85 via-[#081b33]/35 to-transparent" />
+
         <div className="relative">
           <p className="text-2xl font-bold tracking-tight xl:text-3xl">
             FestiGo<span className="text-white/90">.</span>
           </p>
           <p className="mt-3 max-w-md text-lg leading-relaxed text-white/80">
-            Manage your events effortlessly.
+            Gérez vos événements sans effort.
           </p>
         </div>
         <div className="relative mt-auto max-w-lg rounded-2xl border border-white/15 bg-white/10 p-8 backdrop-blur-sm">
           <Quote className="mb-4 h-8 w-8 text-white/70" aria-hidden />
           <blockquote className="text-lg font-medium leading-relaxed text-white/95">
-            « Enfin une plateforme claire pour nos billetteries et nos équipes terrain. »
+            « Là où les mots s’arrêtent, la musique commence. »
           </blockquote>
-          <p className="mt-4 text-sm text-white/70">— Équipe production, festival partenaire</p>
+          <p className="mt-4 text-sm text-white/70">— Heinrich Heine</p>
         </div>
       </div>
     </div>

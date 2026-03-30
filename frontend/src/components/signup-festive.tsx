@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { Mail, Lock, User, ArrowRight, Quote } from 'lucide-react';
+const affiche1Url = new URL('../../images/login-branding.jpg', import.meta.url).href;
+
 
 interface SignupFestiveProps {
   onNavigateToLogin?: () => void;
+  onLoginAsUser?: () => void;
+  onLoginAsOrganizer?: () => void;
 }
 
 const fieldInputClass =
@@ -207,7 +211,19 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
         </div>
       </div>
 
+      {/* Desktop: branding panel */}
+
       <div className="relative hidden min-h-0 flex-1 flex-col justify-between overflow-hidden bg-[#125484] p-12 text-white lg:order-1 lg:flex xl:p-16">
+         {/* Image de fond (côté droit) */}
+         <img
+          src={affiche1Url}
+          alt="Ambiance de concert"
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="eager"
+        />
+        {/* Overlay pour améliorer la lisibilité */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#081b33]/85 via-[#081b33]/35 to-transparent" />
+
         <div className="relative">
           <p className="text-2xl font-bold tracking-tight xl:text-3xl">
             FestiGo<span className="text-white/90">.</span>
@@ -219,9 +235,9 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
         <div className="relative mt-auto max-w-lg rounded-2xl border border-white/15 bg-white/10 p-8 backdrop-blur-sm">
           <Quote className="mb-4 h-8 w-8 text-white/70" aria-hidden />
           <blockquote className="text-lg font-medium leading-relaxed text-white/95">
-            « Onboarding fluide, zéro friction pour nos bénévoles le jour J. »
+            « Sans musique, la vie serait une erreur. »
           </blockquote>
-          <p className="mt-4 text-sm text-white/70">— Responsable billetterie, salle partenaire</p>
+          <p className="mt-4 text-sm text-white/70">— Friedrich Nietzsche</p>
         </div>
       </div>
     </div>
