@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Mail, Lock, User, ArrowRight, Quote } from 'lucide-react';
+import React, { useState } from 'react';
+import { Mail, Lock, User, ArrowRight, Quote, Building2 } from 'lucide-react';
+
+
 const affiche1Url = new URL('../../images/login-branding.jpg', import.meta.url).href;
 
 
@@ -13,6 +15,11 @@ const fieldInputClass =
   'w-full px-4 pt-6 pb-3 border border-gray-200 rounded-xl bg-white text-slate-900 shadow-sm focus:outline-none focus:border-festigo focus:ring-2 focus:ring-festigo/25 transition-all duration-200 peer';
 
 export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
+
+const [accountType, setAccountType] = useState<'user' | 'organizer'>('user');
+const isOrganizer = accountType === 'organizer';
+
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +28,10 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
   const [fullNameFocused, setFullNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const [organisationName, setOrganisationName] = useState('');
+  const [organisationNameFocused, setOrganisationNameFocused] = useState(false);
+  const isOrganisationNameActive = organisationNameFocused || organisationName.length > 0;
 
   const isFullNameActive = fullNameFocused || fullName.length > 0;
   const isEmailActive = emailFocused || email.length > 0;
@@ -34,7 +45,7 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
     }`;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 font-sans antialiased lg:flex-row">
+    <div className="min-h-screen flex flex-col bg-slate-50 font-sans antialiased lg:h-screen lg:flex-row lg:overflow-hidden">
       <div className="bg-[#125484] px-6 py-5 text-white lg:hidden">
         <p className="text-lg font-bold tracking-tight">
           FestiGo<span className="text-white/90">.</span>
@@ -42,7 +53,7 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
         <p className="mt-0.5 text-sm text-white/80">Rejoins la communauté en quelques secondes.</p>
       </div>
 
-      <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:order-2 lg:w-[44%] lg:max-w-none lg:px-12 xl:px-16">
+      <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:order-2 lg:h-full lg:w-[44%] lg:max-w-none lg:justify-start lg:overflow-y-auto lg:px-12 xl:px-16">
         <div className="festigo-auth-fade-in mx-auto w-full max-w-md">
           <div className="mb-8 lg:mb-10">
             <p className="text-lg font-bold tracking-tight text-slate-900 lg:text-xl">
@@ -58,7 +69,58 @@ export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
             </p>
           </div>
 
+          
+
+          <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-xl border border-gray-200 bg-slate-100/80 p-1.5">
+            <button
+              type="button"
+              onClick={() => setAccountType('user')}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                !isOrganizer
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Je suis fan
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAccountType('organizer')}
+              className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                isOrganizer
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Je suis organisateur
+            </button>
+          </div>
+
           <form className="space-y-5">
+          {isOrganizer && (
+              <div className="relative">
+                <input
+                  type="text"
+                  id="organisationName"
+                  value={organisationName}
+                  onChange={(e) => setOrganisationName(e.target.value)}
+                  onFocus={() => setOrganisationNameFocused(true)}
+                  onBlur={() => setOrganisationNameFocused(false)}
+                  className={fieldInputClass}
+                  placeholder=" "
+                />
+                <label htmlFor="organisationName" className={labelFloating(isOrganisationNameActive)}>
+                  Nom de l'organisation
+                </label>
+                <Building2
+                  className={`pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${
+                    organisationNameFocused ? 'text-festigo' : 'text-slate-400'
+                  }`}
+                />
+              </div>
+            )}
+
             <div className="relative">
               <input
                 type="text"
