@@ -1,6 +1,8 @@
 package jpa.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -29,6 +31,9 @@ public class EventsResource {
     
     @GET
     @Path("/{eventId}")
+    @Operation(summary = "Récupérer un évènement par son ID", description = "Retourne un évènement à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Évènement trouvé pour cet ID")
+    @ApiResponse(responseCode = "404",description = "Évènement non trouvé pour cet ID")
     public EventsDTO getEventsById(@PathParam("eventId") Long eventId)  {
         EventsDAO dao = new EventsDAO();
         jpa.model.Events entity = dao.findOne(eventId);
@@ -68,6 +73,9 @@ public class EventsResource {
     
     @GET
     @Path("{eventId}/organizer")
+    @Operation(summary = "Récupérer l'organisateur d'un évènement", description = "Retourne l'organisateur d'un evènement par l'id de cet évènement")
+    @ApiResponse(responseCode = "200", description = "Organisateur trouvé pour cet évènement")
+    @ApiResponse(responseCode = "404",description = "Organisateur non trouvé pour cet évènement")
     public OrganizerDTO getOrganizerByEventId(@PathParam("eventId") Long eventId) {
         EventsDAO eventsDao = new EventsDAO();
         Events event = eventsDao.findOne(eventId);
@@ -92,6 +100,9 @@ public class EventsResource {
     
     @GET
     @Path("/{eventId}/main-artist")
+    @Operation(summary = "Obtenir l'artiste principal d'un évènement", description = "Retourne l'artiste principal d'un evènement")
+    @ApiResponse(responseCode = "200", description = "Artiste principal obtenu avec succès")
+    @ApiResponse(responseCode = "404",description = "Artiste principal introuvable pour cet évènement")
     public ArtisteDTO getMainArtistByEventId(@PathParam("eventId") Long eventId)  {
         EventsDAO dao = new EventsDAO();
         Events event= dao.findOne(eventId);
@@ -114,6 +125,9 @@ public class EventsResource {
     
     @GET
     @Path("/{eventId}/guest-artist")
+    @Operation(summary = "Obtenir la liste des artistes invités à un évènement", description = "Retourne la liste des invités d'un evènement")
+    @ApiResponse(responseCode = "200", description = "Liste d'invités obtenue avec succès")
+    @ApiResponse(responseCode = "404",description = "Invités introuvable pour cet évènement ")
     public List<ArtisteDTO> getGuestsByEventId(@PathParam("eventId") Long eventId)  {
         EventsDAO dao = new EventsDAO();
         Events event = dao.findOne(eventId);
@@ -135,6 +149,9 @@ public class EventsResource {
 
     @DELETE
     @Path("/{eventId}")
+    @Operation(summary = "Supprimer un évènement", description = "Retourne l'évènement' supprimée")
+    @ApiResponse(responseCode = "200", description = "Évènement supprimée avec succès")
+    @ApiResponse(responseCode = "404",description = "La suppression de l'évènement a échouée ")
     public Response deleteEventById(@PathParam("eventId") Long eventId) {
         EventsDAO dao = new EventsDAO();
         jpa.model.Events event= dao.findOne(eventId);
@@ -149,6 +166,9 @@ public class EventsResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Récupérer la liste de tous les évènements", description = "Retourne la liste complètes de tousles évènements")
+    @ApiResponse(responseCode = "200", description = "Évènements trouvées")
+    @ApiResponse(responseCode = "404",description = "Évènements non trouvées")
     public List<EventsDTO> listEvents() {
         return new EventsDAO().findAll().stream()
                 .map(event -> {
@@ -183,8 +203,11 @@ public class EventsResource {
     
     @POST
     @Consumes("application/json")
+    @Operation(summary = "Ajout d'un nouvel évènement", description = "Permet d'ajouter un évènement et retourne un objet de type 'Response'")
+    @ApiResponse(responseCode = "201", description = "Évènement ajouté avec succès")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout de l'évènement'")
     public Response addEvent(
-            @Parameter(description = "Events object that needs to be added to the store", required = true) EventsDTO eventDto) {
+            @Parameter(description = "Objet events qui doit être ajouté à la base", required = true) EventsDTO eventDto) {
         OrganizerDAO organizerDAO = new OrganizerDAO();
         ArtisteDAO artisteDAO = new ArtisteDAO();
 
@@ -192,7 +215,7 @@ public class EventsResource {
         Artiste artistePrincipal = artisteDAO.findOne(eventDto.getArtistePrincipalId());
         if (organizer == null || artistePrincipal == null) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Organizer ou artiste principal introuvable pour les IDs fournis")
+                    .entity("Organisateur ou artiste principal introuvable pour les IDs fournis")
                     .build();
         }
 

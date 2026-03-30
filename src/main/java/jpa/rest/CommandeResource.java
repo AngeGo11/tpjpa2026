@@ -1,6 +1,8 @@
 package jpa.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -25,6 +27,9 @@ public class CommandeResource {
     
     @GET
     @Path("/{commandeId}")
+    @Operation(summary = "Récupérer une commande par son ID", description = "Retourne une commande à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Commande trouvée pour cet ID")
+    @ApiResponse(responseCode = "404",description = "Commande non trouvée pour cet ID")
     public CommandeDTO getCommandeById(@PathParam("commandeId") Long commandeId)  {
         CommandeDAO dao = new CommandeDAO();
         Commande entity = dao.findOne(commandeId);
@@ -44,6 +49,9 @@ public class CommandeResource {
     
     @GET
     @Path("/{commandeId}/billets")
+    @Operation(summary = "Obtenir les billets associés à une commande", description = "Retourne la liste de tous les billets associés à une commande")
+    @ApiResponse(responseCode = "200", description = "Billets obtenus avec succès")
+    @ApiResponse(responseCode = "404",description = "Billets introuvable pour cette commande")
     public List<BilletsDTO> getBilletsByCommandeId(@PathParam("commandeId") Long commandeId) {
         CommandeDAO dao = new CommandeDAO();
         Commande commande = dao.findOne(commandeId);
@@ -66,6 +74,9 @@ public class CommandeResource {
     
     @DELETE
     @Path("/{commandeId}")
+    @Operation(summary = "Supprimer une commande", description = "Retourne la commande supprimée")
+    @ApiResponse(responseCode = "200", description = "Commande supprimée avec succès")
+    @ApiResponse(responseCode = "404",description = "La suppression de la commande a échouée ")
     public Response deleteCommandeById(@PathParam("commandeId") Long commandeId) {
         CommandeDAO dao = new CommandeDAO();
         Commande commande = dao.findOne(commandeId);
@@ -81,6 +92,9 @@ public class CommandeResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Récupérer la liste de toutes les commandes", description = "Retourne la liste complètes de toutes les commandes")
+    @ApiResponse(responseCode = "200", description = "Commandes trouvées")
+    @ApiResponse(responseCode = "404",description = "Commandes non trouvées")
     public List<CommandeDTO> listCommandes() {
         return new CommandeDAO().findAll().stream()
                 .map(commande -> {
@@ -101,8 +115,11 @@ public class CommandeResource {
     
     @POST
     @Consumes("application/json")
+    @Operation(summary = "Ajout d'une nouvelle commande", description = "Permet d'ajouter une commande et retourne un objet de type 'Response'")
+    @ApiResponse(responseCode = "201", description = "Commande ajoutée")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout de la commande")
     public Response addCommande(
-            @Parameter(description = "Commande object that needs to be added to the store", required = true) CommandeDTO commandeDTO) {
+            @Parameter(description = "Objet commande qui doit être ajouté à la base", required = true) CommandeDTO commandeDTO) {
         UsersDAO usersDAO = new UsersDAO();
         Users acheteur = usersDAO.findOne(commandeDTO.getAcheteurId());
         if (acheteur == null) {

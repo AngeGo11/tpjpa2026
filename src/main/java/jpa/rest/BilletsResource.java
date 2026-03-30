@@ -1,7 +1,9 @@
 package jpa.rest;
 
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.NotFoundException;
@@ -26,6 +28,9 @@ public class BilletsResource {
     
     @GET
     @Path("/{billetId}")
+    @Operation(summary = "Récupérer un billet par son ID", description = "Retourne un billet à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Billet trouvé")
+    @ApiResponse(responseCode = "404",description = "Billet non trouvé")
     public BilletsDTO getBilletById(@PathParam("billetId") Long billetId)  {
         BilletsDAO dao = new BilletsDAO();
         jpa.model.Billets entity = dao.findOne(billetId);
@@ -40,6 +45,9 @@ public class BilletsResource {
     
     @GET
     @Path("/{billetId}/type_billet")
+    @Operation(summary = "Récupérer le type d'un billet par son ID", description = "Retourne le type d'un billet à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Type pour billet trouvé avec succès")
+    @ApiResponse(responseCode = "404",description = "Type introuvable pour ce billet")
     public TypeBilletDTO getTypeById(@PathParam("billetId") Long billetId)  {
         BilletsDAO dao = new BilletsDAO();
         Billets entity = dao.findOne(billetId);
@@ -54,23 +62,24 @@ public class BilletsResource {
             throw new NotFoundException();
         }
 
-        return toTypeBilletDomain(type);
-    }
-
-    private TypeBilletDTO toTypeBilletDomain(TypeBillet entity) {
-        TypeBilletDTO.Type typeDto = TypeBilletDTO.Type.valueOf(entity.getType().name());
+        TypeBillet entityTypeBillet = new TypeBillet();
+        TypeBilletDTO.Type typeDto = TypeBilletDTO.Type.valueOf(entityTypeBillet.getType().name());
         TypeBilletDTO dto = new TypeBilletDTO(
-                null, typeDto, entity.getPrix(), entity.getStock());
+                null, typeDto, entityTypeBillet.getPrix(), entityTypeBillet.getStock());
         dto.setId(entity.getId());
-        dto.setEventId(entity.getEvent().getId());
+        dto.setEventId(entityTypeBillet.getEvent().getId());
         return dto;
     }
+
 
 
     
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Récupérer la liste des billets", description = "Retourne la liste complètes de tous les billets")
+    @ApiResponse(responseCode = "200", description = "Billets trouvé")
+    @ApiResponse(responseCode = "404",description = "Billets non trouvé")
     public List<BilletsDTO> listBillets()  {
         return new BilletsDAO().findAll().stream()
                 .map(billets -> {
@@ -85,8 +94,11 @@ public class BilletsResource {
     
     @POST
     @Consumes("application/json")
+    @Operation(summary = "Ajout d'un billet pour un évènement", description = "Permet d'ajouter un billet et retourne un objet de type 'Response'")
+    @ApiResponse(responseCode = "201", description = "Billet ajouté")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout du billet")
     public Response addBillets(
-            @Parameter(description = "Billets object that needs to be added to the store", required = true) BilletsDTO billetDTO) {
+            @Parameter(description = "Objet billets qui doit être ajouté à la base", required = true) BilletsDTO billetDTO) {
 
         // Charger les entités liées à partir des IDs (clés étrangères)
         CommandeDAO commandeDAO = new CommandeDAO();

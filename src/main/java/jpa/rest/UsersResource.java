@@ -26,7 +26,7 @@ public class UsersResource {
     @GET
     @Path("/{userId}")
     @Operation(summary = "Récupérer un utilisateur par son ID", description = "Retourne un utilisateur à partir de son ID")
-    @ApiResponse(responseCode = "200", description = "Artiste trouvé")
+    @ApiResponse(responseCode = "200", description = "Utilisateur trouvé")
     @ApiResponse(responseCode = "404",description = "Utilisateur non trouvé")
     public UsersDTO getUsersById(@PathParam("userId") Long userId)  {
         UsersDAO dao = new UsersDAO();

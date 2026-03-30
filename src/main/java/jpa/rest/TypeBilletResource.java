@@ -1,6 +1,8 @@
 package jpa.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -27,6 +29,9 @@ public class TypeBilletResource {
     
     @GET
     @Path("/{typeId}")
+    @Operation(summary = "Récupérer un Type de billet par son ID", description = "Retourne un billet à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Type de billet trouvé")
+    @ApiResponse(responseCode = "404",description = "Type de billet non trouvé")
     public TypeBilletDTO getTypeById(@PathParam("typeId") Long typeId)  {
         TypeBilletDAO dao = new TypeBilletDAO();
         jpa.model.TypeBillet entity = dao.findOne(typeId);
@@ -44,6 +49,9 @@ public class TypeBilletResource {
     
     @GET
     @Path("/{typeId}/events")
+    @Operation(summary = "Récupérer un évènement par son l'id du type de billet", description = "Retourne un évenement à partir de l'id de son type de billet")
+    @ApiResponse(responseCode = "200", description = "Évènement trouvé")
+    @ApiResponse(responseCode = "404",description = "Évènement non trouvé")
     public EventsDTO getEventByTypeId(@PathParam("typeId") Long typeId)  {
 
         TypeBilletDAO dao = new TypeBilletDAO();
@@ -84,6 +92,10 @@ public class TypeBilletResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Récupérer la liste des type de billet disponible", description = "Retourne une liste des types de billet")
+    @ApiResponse(responseCode = "200", description = "Types de billets trouvé")
+    @ApiResponse(responseCode = "404",description = "Types de billets non trouvé")
+
     public List<TypeBilletDTO> listTypeBillet()  {
         TypeBilletDAO dao = new TypeBilletDAO();
         return dao.findAll().stream()
@@ -101,6 +113,9 @@ public class TypeBilletResource {
     
     @POST
     @Consumes("application/json")
+    @Operation(summary = "Ajout d'un nouveau type de billet", description = "Permet d'ajouter un type de billet et retourne un objet de type 'Response'")
+    @ApiResponse(responseCode = "201", description = "Type de billet ajouté")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout du type de billet")
     public Response addTypeBillet(
             @Parameter(description = "TypeBillet object that needs to be added to the store", required = true) TypeBilletDTO typeDto) {
         EventsDAO eventsDAO = new EventsDAO();

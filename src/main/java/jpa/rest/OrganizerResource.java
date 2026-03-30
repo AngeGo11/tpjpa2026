@@ -1,5 +1,7 @@
 package jpa.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.core.MediaType;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;
@@ -25,6 +27,9 @@ public class OrganizerResource {
     
     @GET
     @Path("/{organizerId}")
+    @Operation(summary = "Récupérer un organisateur par son ID", description = "Retourne un organisateur à partir de son ID")
+    @ApiResponse(responseCode = "200", description = "Organisateur trouvé")
+    @ApiResponse(responseCode = "404",description = "Organisateur non trouvé")
     public OrganizerDTO getOrganizerById(@PathParam("organizerId") Long organizerId) {
         OrganizerDAO dao = new OrganizerDAO();
         jpa.model.Organizer entity = dao.findOne(organizerId);
@@ -42,6 +47,9 @@ public class OrganizerResource {
     
     @GET
     @Path("/{organizerId}/events")
+    @Operation(summary = "Récupérer la liste des évènements organisés par un organisateur", description = "Retourne la liste de tous les évènements organisés par un organisateur")
+    @ApiResponse(responseCode = "200", description = "Évènements trouvés pour cet organisateur")
+    @ApiResponse(responseCode = "404",description = "Impossible de trouver des évènements pour cet organisateur")
     public List<EventsDTO> getEventsByOrganizerId(@PathParam("organizerId") Long organizerId) {
         OrganizerDAO dao = new OrganizerDAO();
         Organizer organizerEntity = dao.findOne(organizerId);
@@ -101,6 +109,9 @@ public class OrganizerResource {
     
     @DELETE
     @Path("/{organizerId}")
+    @Operation(summary = "Supprimer un organisateur à l'aide de son id", description = "Retourne l'organisateur supprimé")
+    @ApiResponse(responseCode = "200", description = "Organisateur supprimé avec succès")
+    @ApiResponse(responseCode = "404",description = "La suppression de l'organisateur a échouée ")
     public Response deleteOrganizerById(@PathParam("organizerId") Long organizerId) {
         OrganizerDAO dao = new OrganizerDAO();
         Organizer organizer = dao.findOne(organizerId);
@@ -116,6 +127,9 @@ public class OrganizerResource {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Récupérer la liste des organisateurs", description = "Retourne la liste complètes de tous les organisateurs")
+    @ApiResponse(responseCode = "200", description = "Organisateurs trouvé")
+    @ApiResponse(responseCode = "404",description = "Organisateurs non trouvé")
     public List<OrganizerDTO> listOrganizer() {
         return new OrganizerDAO().findAll().stream()
                 .map(organizer -> {
@@ -132,8 +146,11 @@ public class OrganizerResource {
     
     @POST
     @Consumes("application/json")
+    @Operation(summary = "Ajout d'organisateur", description = "Permet d'ajouter un organisateur et retourne un objet de type 'Response'")
+    @ApiResponse(responseCode = "201", description = "Organisateur ajouté")
+    @ApiResponse(responseCode = "404",description = "Erreur lors de l'ajout de l'organisateur")
     public Response addOrganizer(
-            @Parameter(description = "Organizer object that needs to be added to the store", required = true) OrganizerDTO organizerDTO) {
+            @Parameter(description = "Objet organisateur qui doit être ajouté à la base", required = true) OrganizerDTO organizerDTO) {
         Organizer entity = new Organizer(organizerDTO.getNomOrganisation());
         entity.setNom(organizerDTO.getNom());
         entity.setEmail(organizerDTO.getEmail());
