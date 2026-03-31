@@ -101,7 +101,8 @@ public class LoginResource {
         created.setEmail(newUser.getEmail());
         created.setMdp(newUser.getMdp());
         created.setRole(newUser.getRole());
-        if (newUser instanceof Organizer organizer) {
+        if (newUser instanceof Organizer) {
+            Organizer organizer = (Organizer) newUser;
             created.setNomOrganisation(organizer.getNomOrganisation());
         }
 
