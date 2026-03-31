@@ -26,7 +26,7 @@ public class CommandeDAO extends AbstractJpaDao<Long, Commande>  {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Commande> cq = cb.createQuery(Commande.class);
         Root<Commande> root = cq.from(Commande.class);
-        cq.select(root).where(cb.equal(root.get("id"), idUser));
+        cq.select(root).where(cb.equal(root.get("acheteur").get("id"), idUser));
         return entityManager.createQuery(cq).getResultList();
     }
 }
