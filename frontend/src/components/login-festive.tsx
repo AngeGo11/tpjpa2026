@@ -86,7 +86,7 @@ export function LoginFestive({ onNavigateToSignup, onLoginAsUser, onLoginAsOrgan
             </button>
             <button
               type="button"
-              onClick={() => setAccountType('organizer')}
+              onClick={() => setAccountType('Organizer')}
               className={`rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
                 isOrganizer
                   ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'

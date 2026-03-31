@@ -62,7 +62,7 @@ public class BilletsResource {
             throw new NotFoundException();
         }
 
-        TypeBillet entityTypeBillet = new TypeBillet();
+        TypeBillet entityTypeBillet = entity.getTypeBillet();
         TypeBilletDTO.Type typeDto = TypeBilletDTO.Type.valueOf(entityTypeBillet.getType().name());
         TypeBilletDTO dto = new TypeBilletDTO(
                 null, typeDto, entityTypeBillet.getPrix(), entityTypeBillet.getStock());
