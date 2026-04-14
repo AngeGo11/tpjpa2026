@@ -1,12 +1,23 @@
 import { fetchApi } from './api';
+import { User } from './userService';
+import { Billet } from './billetService';
 
-// TODO: Adapter cette interface pour qu'elle corresponde à l'entité Commande
+export enum StatutCommande {
+  ANNULE = 'ANNULE',
+  REMBOURSE = 'REMBOURSE',
+  VALIDEE = 'VALIDEE'
+}
+
+/**
+ * Correspond à l'entité Commande.java du backend.
+ */
 export interface Commande {
-  id?: number;
-  date: string;
-  userId: number;
-  billets: number[]; // Array of billet IDs
-  // ... autres champs
+  id: number;
+  date: string; // ISO string form backend
+  montantTotal: number;
+  acheteur: User; // Ou number si seul l'ID est retourné
+  statut: StatutCommande;
+  billets: Billet[]; // Optionnel, selon la façon dont le backend gère les fetch paresseux
 }
 
 export const commandeService = {

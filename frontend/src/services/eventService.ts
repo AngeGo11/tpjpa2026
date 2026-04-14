@@ -1,14 +1,32 @@
 import { fetchApi } from './api';
 
-// Définissez ici l'interface de votre Event en TypeScript
-// (Assurez-vous qu'elle correspond aux champs de votre backend)
+export enum GenreMusical {
+  POP = 'POP',
+  ROCK = 'ROCK',
+  SHATTA = 'SHATTA',
+  JAZZ = 'JAZZ',
+  HIP_HOP = 'HIP_HOP',
+  ELECTRO = 'ELECTRO',
+  RAP = 'RAP'
+}
+
+/**
+ * Correspond à l'entité EventsDTO.java du backend.
+ * Attention: Le backend ne renvoie pas les objets complets, mais des IDs !
+ */
 export interface Event {
-  id?: number;
-  title: string;
+  id: number;
+  nom: string;
+  lieu: string;
+  image: string;
+  date: string; // Date en format string (ISO) retournée par le backend
+  heure: string; // Heure en format string retournée par le backend
   description: string;
-  date: string;
-  location: string;
-  // ... autres champs
+  nbPlaces: number;
+  organizerId: number; // Le backend renvoie organizerId, pas un objet Organizer
+  genreMusical: GenreMusical;
+  artistePrincipalId: number; // Le backend renvoie artistePrincipalId
+  inviteIds: number[]; // Le backend renvoie une liste d'IDs
 }
 
 export const eventService = {

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8080/api'; // On revient à l'URL complète
 
 /**
  * Fonction utilitaire pour faire des requêtes au backend.
@@ -7,9 +7,12 @@ const API_BASE_URL = 'http://localhost:8080/api';
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  const token = localStorage.getItem('authToken');
+
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   };
 
   const response = await fetch(url, {
@@ -21,15 +24,14 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
   });
 
   if (!response.ok) {
-    // Si le serveur renvoie une erreur (404, 500, etc.), on lève une exception
     const errorBody = await response.text().catch(() => 'Erreur inconnue');
     throw new Error(`Erreur HTTP: ${response.status} - ${errorBody}`);
   }
 
-  // S'il n'y a pas de contenu (ex: DELETE), on ne parse pas le JSON
   if (response.status === 204) {
     return {} as T;
   }
 
-  return response.json();
+  const textBody = await response.text();
+  return textBody ? JSON.parse(textBody) : ({} as T);
 }

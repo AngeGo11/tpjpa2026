@@ -1,11 +1,21 @@
 import { fetchApi } from './api';
+import { Event } from './eventService';
 
-// TODO: Adapter cette interface pour qu'elle corresponde à l'entité TypeBillet
+export enum Type {
+  GrandPublic = 'GrandPublic',
+  VIP = 'VIP',
+  VVIP = 'VVIP'
+}
+
+/**
+ * Correspond à l'entité TypeBillet.java du backend.
+ */
 export interface TypeBillet {
-  id?: number;
-  name: string;
-  description: string;
-  // ... autres champs
+  id: number;
+  event: Event; // Ou just l'ID : number si l'API renvoie seulement l'ID
+  type: Type;
+  prix: number;
+  stock: number;
 }
 
 export const typeBilletService = {
@@ -13,7 +23,6 @@ export const typeBilletService = {
    * Récupérer tous les types de billets (GET /api/types-billet)
    */
   getAllTypeBillets: async (): Promise<TypeBillet[]> => {
-    // Note: L'endpoint exact peut varier, j'ai supposé '/types-billet'
     return fetchApi<TypeBillet[]>('/types-billet');
   },
 

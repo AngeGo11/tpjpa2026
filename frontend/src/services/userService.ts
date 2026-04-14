@@ -1,12 +1,20 @@
 import { fetchApi } from './api';
 
-// TODO: Adapter cette interface pour qu'elle corresponde à l'entité User
+export enum Role {
+  Fan = 'Fan',
+  Organizer = 'Organizer'
+}
+
+/**
+ * Correspond à l'entité Users.java du backend.
+ */
 export interface User {
-  id?: number;
-  username: string;
+  id: number;
+  nom: string;
   email: string;
-  role: string;
-  // ... autres champs
+  mdp: string; // Mot de passe (Attention : généralement on ne le renvoie pas au frontend)
+  role: Role;
+  // commandes: Commande[] - On peut l'ajouter si on l'utilise
 }
 
 export const userService = {

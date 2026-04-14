@@ -1,12 +1,15 @@
 import { fetchApi } from './api';
+import { Commande } from './commandeService';
+import { TypeBillet } from './typeBilletService';
 
-// TODO: Adapter cette interface pour qu'elle corresponde à l'entité Billet
+/**
+ * Correspond à l'entité Billets.java du backend.
+ */
 export interface Billet {
-  id?: number;
-  prix: number;
-  typeId: number;
-  eventId: number;
-  // ... autres champs
+  id: number;
+  codeBarre: string;
+  commande: Commande; // ou l'ID si le backend renvoie juste l'ID
+  typeBillet: TypeBillet; // ou l'ID si le backend renvoie juste l'ID
 }
 
 export const billetService = {

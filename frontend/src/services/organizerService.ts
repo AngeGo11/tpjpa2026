@@ -1,12 +1,13 @@
 import { fetchApi } from './api';
+import { User, Role } from './userService';
 
-// TODO: Adapter cette interface pour qu'elle corresponde à l'entité Organizer
-export interface Organizer {
-  id?: number;
-  name: string;
-  email: string;
-  phone: string;
-  // ... autres champs
+/**
+ * Correspond à l'entité Organizer.java du backend.
+ * Elle hérite de Users (nom, email, mdp, role).
+ */
+export interface Organizer extends User {
+  nomOrganisation: string;
+  // events: Event[] - Si nécessaire
 }
 
 export const organizerService = {
@@ -28,9 +29,11 @@ export const organizerService = {
    * Créer un organisateur (POST /api/organizers)
    */
   createOrganizer: async (organizerData: Partial<Organizer>): Promise<Organizer> => {
+    // Par défaut, s'assurer que le rôle est défini s'il n'est pas envoyé
+    const data = { ...organizerData, role: Role.Organizer };
     return fetchApi<Organizer>('/organizers', {
       method: 'POST',
-      body: JSON.stringify(organizerData),
+      body: JSON.stringify(data),
     });
   },
 
