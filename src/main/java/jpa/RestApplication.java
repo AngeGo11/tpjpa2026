@@ -28,6 +28,9 @@ public class RestApplication extends Application {
         resources.add(UsersResource.class);
         resources.add(LoginResource.class);
 
+        // Add CORS filter
+        resources.add(CorsFilter.class);
+
         return resources;
     }
 }

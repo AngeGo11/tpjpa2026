@@ -20,7 +20,7 @@ public class RestServer {
             UndertowJaxrsServer ut = new UndertowJaxrsServer();
 
             RestApplication app = new RestApplication();
-            ut.deploy(app);
+            ut.deploy(app, "/"); // Préciser la racine du déploiement ("/" au lieu de dépendre du défaut qui pourrait être différent)
 
             ut.start(
                     Undertow.builder()
@@ -28,8 +28,6 @@ public class RestServer {
 
             );
 
-            logger.info("JAX-RS based micro-service running!");
+            logger.info("JAX-RS based micro-service running on http://localhost:8080/api");
         }
     }
-
-
