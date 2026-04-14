@@ -1,16 +1,97 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, Share2, Bookmark, Music, Users, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, MapPin, Share2, Bookmark, Music, Users, Star, ArrowLeft } from 'lucide-react';
+import { eventService, Event } from '../services/eventService';
+import { artisteService, Artiste } from '../services/artisteService';
 
 interface EventDetailsProps {
+  eventId: number; // Nouveau: on passe l'ID de l'événement à afficher
   onBookTickets: () => void;
   onBack: () => void;
 }
 
-const heroImageUrl =
-  'https://images.unsplash.com/photo-1596826793477-814a59819a7a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1600';
-
-export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
+export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsProps) {
   const [isSaved, setIsSaved] = useState(false);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [mainArtist, setMainArtist] = useState<Artiste | null>(null);
+  const [guestArtists, setGuestArtists] = useState<Artiste[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEventData = async () => {
+      if (!eventId) return;
+
+      try {
+        setIsLoading(true);
+
+        const eventData = await eventService.getEventById(eventId);
+        setEvent(eventData);
+
+
+        if (eventData.artistePrincipalId) {
+          try {
+            const artistData = await artisteService.getArtisteById(eventData.artistePrincipalId);
+            setMainArtist(artistData);
+          } catch (e) {
+            console.error("Erreur lors de la récupération de l'artiste principal", e);
+          }
+        }
+
+        // 3. Récupérer les artistes invités
+        if (eventData.inviteIds && eventData.inviteIds.length > 0) {
+           const guestsPromises = eventData.inviteIds.map(id =>
+             artisteService.getArtisteById(id).catch(() => null)
+           );
+           const guests = await Promise.all(guestsPromises);
+           // On filtre les null au cas où un appel échoue
+           setGuestArtists(guests.filter(g => g !== null) as Artiste[]);
+        }
+
+      } catch (err: any) {
+        console.error("Erreur lors du chargement des détails de l'événement:", err);
+        setError("Impossible de charger les détails de l'événement.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEventData();
+  }, [eventId]);
+
+  // Fonction utilitaire pour gérer les images venant du backend qui pourraient être invalides
+  const getImageUrl = (imagePath: string | undefined | null) => {
+    if (!imagePath) return 'https://images.unsplash.com/photo-1596826793477-814a59819a7a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1600';
+    if (imagePath.includes('example.com')) return 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Y29uY2VydHx8fHx8fDE2ODUzMjQyOTQ&ixlib=rb-4.0.3&q=80&w=1600';
+    return imagePath;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-festigo border-t-transparent"></div>
+          <p className="text-slate-600 font-medium">Chargement des détails...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6 text-center">
+         <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Oups !</h2>
+            <p className="text-slate-500 mb-6">{error || "Événement introuvable."}</p>
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-festigo px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-festigo/90"
+            >
+              Retourner aux événements
+            </button>
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-28 font-sans antialiased lg:pb-0">
@@ -23,12 +104,12 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
             <button
               type="button"
               onClick={onBack}
-              className="text-sm font-semibold text-slate-600 transition-colors hover:text-festigo focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 rounded-md"
+              className="flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-festigo focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 rounded-md"
             >
-              ← Retour aux événements
+              <ArrowLeft className="h-4 w-4" />
+              Retour aux événements
             </button>
           </div>
-          
         </div>
       </nav>
 
@@ -36,7 +117,7 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
       <header className="relative isolate min-h-[320px] overflow-hidden md:min-h-[420px]">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImageUrl})` }}
+          style={{ backgroundImage: `url(${getImageUrl(event.image)})` }}
           aria-hidden
         />
         <div className="absolute inset-0 bg-slate-950/65" aria-hidden />
@@ -44,24 +125,26 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
         <div className="relative mx-auto flex h-full min-h-[320px] max-w-7xl flex-col justify-end px-4 pb-10 pt-24 md:min-h-[420px] md:px-6 md:pb-14">
           <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-md">
             <Music className="h-4 w-4 text-white/70" aria-hidden />
-            <span className="text-sm font-semibold text-white/95">Electronic • Dance</span>
+            <span className="text-sm font-semibold text-white/95">{event.genreMusical}</span>
           </div>
           <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl">
-            Purple Lights Festival
+            {event.nom}
           </h2>
-          <p className="mt-2 text-lg text-slate-200">Presented by Various Artists</p>
+          {mainArtist && (
+             <p className="mt-2 text-lg text-slate-200">Avec {mainArtist.nomArtiste}</p>
+          )}
           <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-300">
             <span className="inline-flex items-center gap-2">
               <Calendar className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-              Saturday, July 15, 2026
+              {event.date ? new Date(event.date).toLocaleDateString() : 'Date non définie'}
             </span>
             <span className="inline-flex items-center gap-2">
               <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-              8:00 PM – 11:30 PM
+              {event.heure || 'Heure non définie'}
             </span>
             <span className="inline-flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-              The Grand Arena, Los Angeles, CA
+              {event.lieu}
             </span>
           </div>
         </div>
@@ -76,50 +159,54 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
               </h3>
               <div className="prose prose-lg max-w-none leading-relaxed text-slate-600 prose-p:mb-4 prose-headings:text-slate-900 prose-a:text-festigo">
                 <p>
-                  Get ready for the most electrifying music experience of the summer! Purple Lights Festival brings
-                  together the world's top electronic artists for an unforgettable night of music, lights, and pure
-                  energy.
-                </p>
-                <p>
-                  This year's lineup features internationally acclaimed DJs and producers who will transform The Grand
-                  Arena into a sonic wonderland. Expect cutting-edge visual productions, immersive stage design, and a
-                  sound system that will resonate through your soul.
-                </p>
-                <p className="mb-0">
-                  Whether you're a dedicated electronic music enthusiast or simply looking for an incredible night out,
-                  Purple Lights Festival promises an experience you'll never forget. Join thousands of music lovers as we
-                  dance under purple lights until the early hours.
+                  {event.description || "Aucune description n'a été fournie pour cet événement."}
                 </p>
               </div>
             </section>
 
-            <section>
-              <h3 className="mb-4 border-b border-slate-200 pb-2 text-2xl font-semibold text-slate-900">
-                Artistes en vedette
-              </h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                {[
-                  { name: 'DJ Nexus', role: 'Headliner' },
-                  { name: 'Luna Eclipse', role: 'Co-Headliner' },
-                  { name: 'The Frequencies', role: 'Opening Act' },
-                  { name: 'Midnight Pulse', role: 'Special Guest' },
-                ].map((artist, index) => (
-                  <div
-                    key={index}
-                    className="flex cursor-default items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-festigo/25 hover:bg-slate-50/80"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-festigo/10 text-festigo">
-                      <Star className="h-4 w-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900">{artist.name}</p>
-                      <p className="text-sm text-slate-500">{artist.role}</p>
+            {(mainArtist || guestArtists.length > 0) && (
+              <section>
+                <h3 className="mb-4 border-b border-slate-200 pb-2 text-2xl font-semibold text-slate-900">
+                  Artistes en vedette
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  {/* Affichage de l'artiste principal */}
+                  {mainArtist && (
+                    <div className="flex cursor-default items-center gap-3 rounded-xl border border-festigo/30 bg-festigo/5 px-4 py-3.5 transition-colors hover:border-festigo/50 hover:bg-festigo/10">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-festigo text-white">
+                        <Star className="h-5 w-5" aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">{mainArtist.nomArtiste}</p>
+                        <p className="text-sm text-festigo font-medium">Headliner</p>
+                      </div>
+                      {mainArtist.photoUrl && !mainArtist.photoUrl.includes("example.com") && (
+                         <img src={mainArtist.photoUrl} alt={mainArtist.nomArtiste} className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                      )}
                     </div>
-                    <Users className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
-                  </div>
-                ))}
-              </div>
-            </section>
+                  )}
+
+                  {/* Affichage des artistes invités */}
+                  {guestArtists.map((artist, index) => (
+                    <div
+                      key={index}
+                      className="flex cursor-default items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-festigo/25 hover:bg-slate-50/80"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                        <Users className="h-4 w-4" aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">{artist.nomArtiste}</p>
+                        <p className="text-sm text-slate-500">Special Guest</p>
+                      </div>
+                       {artist.photoUrl && !artist.photoUrl.includes("example.com") && (
+                         <img src={artist.photoUrl} alt={artist.nomArtiste} className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="lg:col-span-4">
@@ -134,7 +221,9 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Date</p>
-                      <p className="mt-0.5 font-semibold text-slate-900">Saturday, July 15, 2026</p>
+                      <p className="mt-0.5 font-semibold text-slate-900">
+                        {event.date ? new Date(event.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Non définie'}
+                      </p>
                     </div>
                   </div>
 
@@ -143,8 +232,8 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
                       <Clock className="h-5 w-5 text-festigo" aria-hidden />
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Time</p>
-                      <p className="mt-0.5 font-semibold text-slate-900">8:00 PM - 11:30 PM</p>
+                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Heure</p>
+                      <p className="mt-0.5 font-semibold text-slate-900">{event.heure || 'Non définie'}</p>
                     </div>
                   </div>
 
@@ -153,24 +242,29 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
                       <MapPin className="h-5 w-5 text-festigo" aria-hidden />
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Venue</p>
-                      <p className="mt-0.5 font-semibold text-slate-900">The Grand Arena</p>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-500">
-                        1234 Music Boulevard
-                        <br />
-                        Los Angeles, CA 90028
-                      </p>
+                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Lieu</p>
+                      <p className="mt-0.5 font-semibold text-slate-900">{event.lieu}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-festigo/10">
+                      <Users className="h-5 w-5 text-festigo" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Capacité</p>
+                      <p className="mt-0.5 font-semibold text-slate-900">{event.nbPlaces} places</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-8 border-t border-slate-100 pt-6">
-                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Tranche de prix</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-900">€45 - €150</p>
+                  {/* Ici on pourrait faire un appel à typeBilletService pour avoir le vrai prix */}
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Billetterie</p>
                   <button
                     type="button"
                     onClick={onBookTickets}
-                    className="mt-6 w-full rounded-xl bg-[#125484] py-4 text-base font-bold text-white shadow-md shadow-[#125484]/10 transition-all hover:-translate-y-0.5 hover:bg-[#125484]/80 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                    className="mt-4 w-full rounded-xl bg-[#125484] py-4 text-base font-bold text-white shadow-md shadow-[#125484]/10 transition-all hover:-translate-y-0.5 hover:bg-[#125484]/80 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
                   >
                     Prendre mes billets
                   </button>
@@ -203,24 +297,6 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
                   </div>
                 </div>
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg shadow-slate-200/40">
-                <div className="relative aspect-square bg-slate-100">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-festigo shadow-lg">
-                      <MapPin className="h-7 w-7 text-white" aria-hidden />
-                    </div>
-                  </div>
-                </div>
-                <div className="border-t border-slate-100 bg-white p-4">
-                  <a
-                    href="#"
-                    className="text-sm font-semibold text-festigo transition-colors hover:text-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 rounded"
-                  >
-                    View in Google Maps →
-                  </a>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -228,16 +304,12 @@ export function EventDetails({ onBookTickets, onBack }: EventDetailsProps) {
 
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur-md md:p-5 lg:hidden">
         <div className="container mx-auto flex max-w-7xl items-center justify-between gap-4 px-2">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">From</p>
-            <p className="text-xl font-bold text-slate-900">€45</p>
-          </div>
           <button
             type="button"
             onClick={onBookTickets}
-            className="rounded-xl bg-amber-500 px-8 py-3.5 text-sm font-bold text-slate-900 shadow-md transition-all hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+            className="w-full rounded-xl bg-amber-500 px-8 py-3.5 text-sm font-bold text-slate-900 shadow-md transition-all hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
           >
-            Book Tickets
+            Acheter des billets
           </button>
         </div>
       </div>

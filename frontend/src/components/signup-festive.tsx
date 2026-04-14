@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, type FormEvent } from 'react';
 import { Mail, Lock, User, ArrowRight, Quote, Building2 } from 'lucide-react';
-
+import { authService } from '../services/authService';
+import { Role } from '../services/userService';
 
 const affiche1Url = new URL('../../images/login-branding.jpg', import.meta.url).href;
-
 
 interface SignupFestiveProps {
   onNavigateToLogin?: () => void;
@@ -14,28 +14,64 @@ interface SignupFestiveProps {
 const fieldInputClass =
   'w-full px-4 pt-6 pb-3 border border-gray-200 rounded-xl bg-white text-slate-900 shadow-sm focus:outline-none focus:border-festigo focus:ring-2 focus:ring-festigo/25 transition-all duration-200 peer';
 
-export function SignupFestive({ onNavigateToLogin }: SignupFestiveProps) {
-
-const [accountType, setAccountType] = useState<'Fan' | 'Organizer'>('Fan');
-const isOrganizer = accountType === 'Organizer';
-
+export function SignupFestive({ onNavigateToLogin, onLoginAsUser, onLoginAsOrganizer }: SignupFestiveProps) {
+  const [accountType, setAccountType] = useState<'Fan' | 'Organizer'>('Fan');
+  const isOrganizer = accountType === 'Organizer';
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [organisationName, setOrganisationName] = useState('');
 
+  // États pour l'UX
   const [fullNameFocused, setFullNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-
-  const [organisationName, setOrganisationName] = useState('');
   const [organisationNameFocused, setOrganisationNameFocused] = useState(false);
-  const isOrganisationNameActive = organisationNameFocused || organisationName.length > 0;
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isOrganisationNameActive = organisationNameFocused || organisationName.length > 0;
   const isFullNameActive = fullNameFocused || fullName.length > 0;
   const isEmailActive = emailFocused || email.length > 0;
   const isPasswordActive = passwordFocused || password.length > 0;
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // 1. Appel à l'API d'inscription
+      const newUser = await authService.register({
+        nom: fullName,
+        email: email,
+        mdp: password,
+        role: isOrganizer ? Role.Organizer : Role.Fan,
+        ...(isOrganizer ? { nomOrganisation: organisationName } : {})
+      });
+
+      // 2. Si l'inscription réussit, on redirige vers la page de login
+      if (onNavigateToLogin) {
+        onNavigateToLogin();
+      }
+
+    } catch (err: any) {
+      console.error("Erreur d'inscription", err);
+      // Personnalisation de l'erreur selon le statut (ex: conflit email)
+      if (err.message.includes('409')) {
+        setError("Cet email est déjà utilisé. Veuillez vous connecter.");
+      } else if (err.message.includes('400')) {
+        setError("Veuillez remplir correctement tous les champs.");
+      } else {
+        setError("Une erreur s'est produite lors de l'inscription.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const labelFloating = (active: boolean) =>
     `absolute left-4 transition-all duration-200 pointer-events-none ${
@@ -69,7 +105,11 @@ const isOrganizer = accountType === 'Organizer';
             </p>
           </div>
 
-          
+          {error && (
+            <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600 border border-red-100">
+              {error}
+            </div>
+          )}
 
           <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-xl border border-gray-200 bg-slate-100/80 p-1.5">
             <button
@@ -97,12 +137,13 @@ const isOrganizer = accountType === 'Organizer';
             </button>
           </div>
 
-          <form className="space-y-5">
-          {isOrganizer && (
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {isOrganizer && (
               <div className="relative">
                 <input
                   type="text"
                   id="organisationName"
+                  required={isOrganizer}
                   value={organisationName}
                   onChange={(e) => setOrganisationName(e.target.value)}
                   onFocus={() => setOrganisationNameFocused(true)}
@@ -125,6 +166,7 @@ const isOrganizer = accountType === 'Organizer';
               <input
                 type="text"
                 id="fullName"
+                required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 onFocus={() => setFullNameFocused(true)}
@@ -146,6 +188,7 @@ const isOrganizer = accountType === 'Organizer';
               <input
                 type="email"
                 id="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onFocus={() => setEmailFocused(true)}
@@ -167,6 +210,8 @@ const isOrganizer = accountType === 'Organizer';
               <input
                 type="password"
                 id="password"
+                required
+                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onFocus={() => setPasswordFocused(true)}
@@ -188,6 +233,7 @@ const isOrganizer = accountType === 'Organizer';
               <div className="relative mt-0.5 flex-shrink-0">
                 <input
                   type="checkbox"
+                  required
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
                   className="h-5 w-5 cursor-pointer rounded-md border-gray-300 text-festigo focus:ring-2 focus:ring-festigo/30"
@@ -207,11 +253,11 @@ const isOrganizer = accountType === 'Organizer';
 
             <button
               type="submit"
-              disabled={!agreedToTerms}
+              disabled={!agreedToTerms || isLoading}
               className="group flex w-full items-center justify-center gap-2 rounded-xl bg-festigo py-3.5 font-semibold text-white shadow-lg shadow-festigo/25 transition-all duration-200 hover:bg-festigo-hover hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0"
             >
-              <span>Créer un compte</span>
-              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              <span>{isLoading ? 'Création en cours...' : 'Créer un compte'}</span>
+              {!isLoading && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />}
             </button>
 
             <div className="relative py-2">
@@ -274,7 +320,6 @@ const isOrganizer = accountType === 'Organizer';
       </div>
 
       {/* Desktop: branding panel */}
-
       <div className="relative hidden min-h-0 flex-1 flex-col justify-between overflow-hidden bg-[#125484] p-12 text-white lg:order-1 lg:flex xl:p-16">
          {/* Image de fond (côté droit) */}
          <img
@@ -282,6 +327,9 @@ const isOrganizer = accountType === 'Organizer';
           alt="Ambiance de concert"
           className="absolute inset-0 h-full w-full object-cover"
           loading="eager"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1540039155732-68ee14814e4b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25jZXJ0fGVufDF8fHx8MTc3MDAyODUyM3ww&ixlib=rb-4.1.0&q=80&w=1080';
+          }}
         />
         {/* Overlay pour améliorer la lisibilité */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#081b33]/85 via-[#081b33]/35 to-transparent" />
