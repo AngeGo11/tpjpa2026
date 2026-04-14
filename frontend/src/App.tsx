@@ -22,8 +22,10 @@ export default function App() {
   const [currentView, setCurrentView] = useState<View>('fan');
   const [fanSection, setFanSection] = useState<FanAppSection>('discovery');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
 
   const handleEventSelect = (eventId: number) => {
+    setSelectedEventId(eventId);
     setCurrentView('event-details');
   };
 
@@ -32,6 +34,7 @@ export default function App() {
   };
 
   const handleBackToEvents = () => {
+    setSelectedEventId(null);
     setCurrentView('fan');
     setFanSection('discovery');
   };
@@ -85,10 +88,19 @@ export default function App() {
           onLoginAsOrganizer={() => setCurrentView('dashboard')}
         />
       )}
-      {currentView === 'signup' && <SignupFestive onNavigateToLogin={() => setCurrentView('login')} />}
+      {currentView === 'signup' && (
+        <SignupFestive
+          onNavigateToLogin={() => setCurrentView('login')}
+          onLoginAsUser={() => {
+            setCurrentView('fan');
+            setFanSection('discovery');
+          }}
+          onLoginAsOrganizer={() => setCurrentView('dashboard')}
+        />
+      )}
       {currentView === 'dashboard' && <OrganizerDashboard />}
-      {currentView === 'event-details' && (
-        <EventDetails onBookTickets={handleBookTickets} onBack={handleBackToEvents} />
+      {currentView === 'event-details' && selectedEventId && (
+        <EventDetails eventId={selectedEventId} onBookTickets={handleBookTickets} onBack={handleBackToEvents} />
       )}
 
       {currentView === 'fan' && (
