@@ -155,6 +155,7 @@ public class OrganizerResource {
         entity.setNom(organizerDTO.getNom());
         entity.setEmail(organizerDTO.getEmail());
         entity.setMdp(organizerDTO.getMdp());
+        entity.setRole(jpa.model.Users.Role.Organizer);
 
         OrganizerDAO dao = new OrganizerDAO();
         dao.save(entity);

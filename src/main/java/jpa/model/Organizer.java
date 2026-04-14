@@ -16,9 +16,11 @@ public class Organizer extends Users implements Serializable {
 
 
     public Organizer() {
+        setRole(Role.Organizer);
     }
 
     public Organizer(String nomOrganisation) {
+        setRole(Role.Organizer);
         this.nomOrganisation = nomOrganisation;
     }
 
