@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     strictPort: false,
+    // On enlève le proxy puisqu'on utilise à nouveau l'URL absolue dans api.ts
   },
 });
-

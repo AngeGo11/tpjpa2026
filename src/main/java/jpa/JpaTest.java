@@ -47,13 +47,13 @@ public class JpaTest {
 
 
     private void insertData() {
-       // insertArtistes();
-       // insertUsers();
-       // insertOrganizers();
-       // insertEvents();
-       // insertTypeBillets();
+        insertArtistes();
+        insertUsers();
+        insertOrganizers();
+        insertEvents();
+        insertTypeBillets();
         insertCommandes();
-       // insertBillets();
+        insertBillets();
     }
 
 	/**
