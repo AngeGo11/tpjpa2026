@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, fetchApiRaw } from './api';
 
 /**
  * Correspond à l'entité ArtisteDTO.java du backend.
@@ -46,6 +46,15 @@ export const artisteService = {
     return fetchApi<Artiste>('/artiste', {
       method: 'POST',
       body: JSON.stringify(dataToSend),
+    });
+  },
+
+  uploadArtisteImage: async (id: number, file: File): Promise<Artiste> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchApiRaw<Artiste>(`/artiste/${id}/image`, {
+      method: 'POST',
+      body: formData,
     });
   },
 

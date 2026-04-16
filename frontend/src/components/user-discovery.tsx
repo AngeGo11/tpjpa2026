@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Search, MapPin, Calendar, Bookmark } from 'lucide-react';
 import { eventService, Event } from '../services/eventService';
+import { artisteService } from '../services/artisteService';
 
 /** Libellés de filtres rapides (affichage uniquement — aucun handler de filtre côté client pour l’instant). */
 const filterChips = ['All', 'Electro', 'Rock', 'Jazz', 'Indie', 'Hip Hop'] as const;
@@ -12,6 +13,7 @@ interface UserDiscoveryProps {
 export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => new Set());
   const [events, setEvents] = useState<Event[]>([]);
+  const [artistNamesById, setArtistNamesById] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,24 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
     fetchEvents();
   }, []);
 
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const artists = await artisteService.getAllArtistes();
+        const names = artists.reduce<Record<number, string>>((acc, artist) => {
+          if (!artist.id) return acc;
+          acc[artist.id] = artist.nomArtiste || artist.nom || `Artiste #${artist.id}`;
+          return acc;
+        }, {});
+        setArtistNamesById(names);
+      } catch (err) {
+        console.error("Erreur lors de la récupération des artistes:", err);
+      }
+    };
+
+    fetchArtists();
+  }, []);
+
   const toggleFavorite = useCallback((eventId: number) => {
     setFavoriteIds((prev) => {
       const next = new Set(prev);
@@ -44,22 +64,22 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
 
   // Fonction utilitaire pour gérer les images venant du backend qui pourraient être invalides
   const getImageUrl = (imagePath: string | undefined | null) => {
-    if (!imagePath) {
-       // Image par défaut si le champ est vide
-      return 'https://images.unsplash.com/photo-1540039155732-68ee14814e4b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25jZXJ0fGVufDF8fHx8MTc3MDAyODUyM3ww&ixlib=rb-4.1.0&q=80&w=1080';
+    const value = (imagePath || '').trim();
+    if (!value) return '/images/login-branding.jpg';
+
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+      return value;
     }
 
-    // Si l'image est déjà une URL complète (commence par http), on l'utilise telle quelle
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      // Cas particulier pour vos données de test : "https://example.com/img/event1.jpg" n'existe pas vraiment
-      if (imagePath.includes('example.com')) {
-         return 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Y29uY2VydHx8fHx8fDE2ODUzMjQyOTQ&ixlib=rb-4.0.3&q=80&w=1080';
-      }
-      return imagePath;
+    // Nouveau format backend: /images/artists/<file> ou /images/events/<file>
+    if (value.startsWith('/images/')) {
+      return value;
     }
 
-    // Si c'est un chemin relatif (ex: /images/event.jpg), il faut s'assurer qu'il pointe vers la bonne ressource
-    return imagePath;
+    const fileName = value.split('/').pop()?.split('?')[0];
+    if (fileName) return `/images/${encodeURIComponent(fileName)}`;
+
+    return value.startsWith('/') ? value : '/images/login-branding.jpg';
   };
 
   return (
@@ -124,7 +144,7 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
            </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-            {events.map((event) => (
+                  {events.map((event) => (
               <div
                 key={event.id}
                 className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
@@ -136,8 +156,8 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
                     alt={event.nom}
                     className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                     onError={(e) => {
-                      // Si l'image casse quand même, on met une image de secours
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1540039155732-68ee14814e4b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb25jZXJ0fGVufDF8fHx8MTc3MDAyODUyM3ww&ixlib=rb-4.1.0&q=80&w=1080';
+                      // Si l'image casse quand même, on met une image locale de secours.
+                      (e.target as HTMLImageElement).src = '/images/login-branding.jpg';
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 bg-black/40" aria-hidden />
@@ -184,7 +204,7 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
                     </span>
                   </div>
                   <p className="mt-2 line-clamp-1 text-sm text-gray-600">
-                    Artiste ID: {event.artistePrincipalId}
+                    Artiste en vedette : {artistNamesById[event.artistePrincipalId] || `Artiste #${event.artistePrincipalId}`}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
                     <span className="text-sm font-bold text-festigo">Voir les prix</span>

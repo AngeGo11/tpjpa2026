@@ -5,18 +5,26 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.ws.rs.*;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.UriBuilder;
 import jpa.dao.ArtisteDAO;
 import jpa.dto.ArtisteDTO;
+import jpa.service.LocalImageStorageService;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 
 @Path("artiste")
 @Produces({"application/json", "application/xml"})
 public class ArtisteResource {
+    private static final Pattern FILENAME_PATTERN = Pattern.compile("filename=\"([^\"]+)\"");
+    private final LocalImageStorageService imageStorageService = new LocalImageStorageService();
 
     
     @GET
@@ -86,6 +94,70 @@ public class ArtisteResource {
                 .path(String.valueOf(entity.getId()))
                 .build()).entity(dto).build();
 
+    }
+
+    @POST
+    @Path("/{artisteId}/image")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Uploader l'image d'un artiste", description = "Sauvegarde l'image dans frontend/images et enregistre le lien relatif")
+    @ApiResponse(responseCode = "200", description = "Image sauvegardee")
+    @ApiResponse(responseCode = "400", description = "Fichier invalide")
+    @ApiResponse(responseCode = "404", description = "Artiste introuvable")
+    public Response uploadArtisteImage(@PathParam("artisteId") Long artisteId, MultipartFormDataInput input) {
+        ArtisteDAO dao = new ArtisteDAO();
+        jpa.model.Artiste artiste = dao.findOne(artisteId);
+        if (artiste == null) {
+            return Response.status(Response.Status.NOT_FOUND).entity("Artiste introuvable").build();
+        }
+
+        try {
+            InputPart imagePart = extractImagePart(input);
+            String contentType = imagePart.getMediaType() != null ? imagePart.getMediaType().toString() : null;
+            String fileName = extractFileName(imagePart);
+            String relativeUrl = imageStorageService.storeImage(
+                    imagePart.getBody(java.io.InputStream.class, null),
+                    fileName,
+                    contentType,
+                    "artists"
+            );
+            artiste.setPhotoUrl(relativeUrl);
+            dao.update(artiste);
+
+            ArtisteDTO dto = new ArtisteDTO(artiste.getNomArtiste(), artiste.getPhotoUrl());
+            dto.setId(artiste.getId());
+            return Response.ok(dto).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        } catch (Exception e) {
+            return Response.serverError().entity("Erreur lors de l'upload de l'image").build();
+        }
+    }
+
+    private InputPart extractImagePart(MultipartFormDataInput input) {
+        if (input == null) {
+            throw new IllegalArgumentException("Formulaire multipart manquant.");
+        }
+        Map<String, List<InputPart>> uploadForm = input.getFormDataMap();
+        if (uploadForm == null || uploadForm.get("file") == null || uploadForm.get("file").isEmpty()) {
+            throw new IllegalArgumentException("Le champ multipart 'file' est requis.");
+        }
+        return uploadForm.get("file").get(0);
+    }
+
+    private String extractFileName(InputPart part) {
+        String disposition = part.getHeaders() != null ? part.getHeaders().getFirst("Content-Disposition") : null;
+        if (disposition == null || disposition.isBlank()) {
+            return null;
+        }
+        String[] contentDispositionHeader = disposition.split(";");
+        for (String segment : contentDispositionHeader) {
+            Matcher matcher = FILENAME_PATTERN.matcher(segment.trim());
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+        }
+        return null;
     }
 
 }

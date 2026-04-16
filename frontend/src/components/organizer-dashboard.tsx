@@ -43,7 +43,6 @@ const inputFocusClass =
 
 const selectFieldClass = `${inputFocusClass} cursor-pointer appearance-none pr-10`;
 const sectionCardClass = 'rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8';
-
 export function OrganizerDashboard() {
   const [view, setView] = useState<OrganizerView>('dashboard');
   const [events, setEvents] = useState<Event[]>([]);
@@ -54,9 +53,9 @@ export function OrganizerDashboard() {
   const [availableArtists, setAvailableArtists] = useState<Artiste[]>([]);
 
   const [artists, setArtists] = useState<
-    Array<{ id: number; dbId: number | null; name: string; role: string; imageName: string; imagePreview: string }>
+    Array<{ id: number; dbId: number | null; name: string; role: string; imageName: string; imagePreview: string; imageFile: File | null }>
   >([
-    { id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '' },
+    { id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '', imageFile: null },
   ]);
 
   const [eventFormData, setEventFormData] = useState({
@@ -75,6 +74,9 @@ export function OrganizerDashboard() {
     premiumQuantity: '',
     vipPrice: '',
     vipQuantity: '',
+    eventImageName: '',
+    eventImagePreview: '',
+    eventImageFile: null as File | null,
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -116,7 +118,7 @@ export function OrganizerDashboard() {
   };
 
   const addArtist = () => {
-    setArtists([...artists, { id: Date.now(), dbId: null, name: '', role: 'supporting', imageName: '', imagePreview: '' }]);
+    setArtists([...artists, { id: Date.now(), dbId: null, name: '', role: 'supporting', imageName: '', imagePreview: '', imageFile: null }]);
   };
 
   const removeArtist = (id: number) => {
@@ -131,7 +133,7 @@ export function OrganizerDashboard() {
 
   const handleArtistImageUpload = (id: number, file: File | null) => {
     if (!file) {
-      setArtists(artists.map((artist) => (artist.id === id ? { ...artist, imageName: '', imagePreview: '' } : artist)));
+      setArtists(artists.map((artist) => (artist.id === id ? { ...artist, imageName: '', imagePreview: '', imageFile: null } : artist)));
       return;
     }
 
@@ -139,9 +141,27 @@ export function OrganizerDashboard() {
     reader.onload = () => {
       setArtists(
         artists.map((artist) =>
-          artist.id === id ? { ...artist, imageName: file.name, imagePreview: String(reader.result || '') } : artist
+          artist.id === id ? { ...artist, imageName: file.name, imagePreview: String(reader.result || ''), imageFile: file } : artist
         )
       );
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEventImageUpload = (file: File | null) => {
+    if (!file) {
+      setEventFormData((prev) => ({ ...prev, eventImageName: '', eventImagePreview: '', eventImageFile: null }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEventFormData((prev) => ({
+        ...prev,
+        eventImageName: file.name,
+        eventImagePreview: String(reader.result || ''),
+        eventImageFile: file,
+      }));
     };
     reader.readAsDataURL(file);
   };
@@ -176,13 +196,19 @@ export function OrganizerDashboard() {
 
       if (foundArtist && foundArtist.id) {
          artistePrincipalId = foundArtist.id;
+         if (headlinerInput.imageFile) {
+            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile);
+         }
       } else {
          const newArtist = await artisteService.createArtiste({
             nomArtiste: headlinerInput.name,
             nom: headlinerInput.name, // Renseigne les deux pour éviter le bug DTO
-            photoUrl: headlinerInput.imagePreview || 'https://images.unsplash.com/photo-1516280440502-6c2e8c253229?q=80&w=200'
+            photoUrl: ''
          });
          artistePrincipalId = newArtist.id!;
+         if (headlinerInput.imageFile) {
+            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile);
+         }
          setAvailableArtists([...availableArtists, newArtist]);
       }
 
@@ -198,13 +224,19 @@ export function OrganizerDashboard() {
 
          if (fGuest && fGuest.id) {
             inviteIds.push(fGuest.id);
+            if (guest.imageFile) {
+              await artisteService.uploadArtisteImage(fGuest.id, guest.imageFile);
+            }
          } else {
             const nGuest = await artisteService.createArtiste({
                nomArtiste: guest.name,
                nom: guest.name,
-               photoUrl: guest.imagePreview || 'https://images.unsplash.com/photo-1493225457124-a1a2a5f5906c?q=80&w=200'
+               photoUrl: ''
             });
             inviteIds.push(nGuest.id!);
+            if (guest.imageFile) {
+              await artisteService.uploadArtisteImage(nGuest.id!, guest.imageFile);
+            }
             setAvailableArtists(prev => [...prev, nGuest]);
          }
       }
@@ -229,10 +261,13 @@ export function OrganizerDashboard() {
          genreMusical: genre,
          artistePrincipalId: artistePrincipalId,
          inviteIds: inviteIds,
-         image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1600'
+         image: ''
       };
 
-      await eventService.createEvent(newEventData);
+      const createdEvent = await eventService.createEvent(newEventData);
+      if (eventFormData.eventImageFile && createdEvent.id) {
+        await eventService.uploadEventImage(createdEvent.id, eventFormData.eventImageFile);
+      }
 
       setSaveMessage({text: "L'événement a été créé avec succès !", type: 'success'});
 
@@ -241,8 +276,9 @@ export function OrganizerDashboard() {
         capacity: '', description: '', category: '',
         standardPrice: '', standardQuantity: '', premiumPrice: '', premiumQuantity: '',
         vipPrice: '', vipQuantity: '',
+        eventImageName: '', eventImagePreview: '', eventImageFile: null,
       });
-      setArtists([{ id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '' }]);
+      setArtists([{ id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '', imageFile: null }]);
 
       fetchMyEvents();
       setTimeout(() => setView('dashboard'), 1500);
@@ -515,6 +551,42 @@ export function OrganizerDashboard() {
                         className={`${inputFocusClass} resize-none`}
                       />
                     </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">Image de l&apos;événement</label>
+                      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-white p-3">
+                        <input
+                          id="event-image-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleEventImageUpload(e.target.files?.[0] ?? null)}
+                        />
+                        <div className="flex h-24 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-festigo/20 bg-gradient-to-br from-festigo/10 to-violet-100">
+                          {eventFormData.eventImagePreview ? (
+                            <img
+                              src={eventFormData.eventImagePreview}
+                              alt={`Affiche de ${eventFormData.eventName || 'événement'}`}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="h-8 w-8 text-festigo/60" />
+                          )}
+                        </div>
+                        <div className="min-w-0 space-y-2">
+                          <label
+                            htmlFor="event-image-upload"
+                            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-festigo px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5" />
+                            {eventFormData.eventImageName ? "Changer l'image" : "Uploader une image"}
+                          </label>
+                          <p className="truncate text-xs text-gray-500">
+                            {eventFormData.eventImageName || 'Format recommandé: paysage (ex: 1600x900)'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -572,6 +644,41 @@ export function OrganizerDashboard() {
                                   className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                                   aria-hidden
                                 />
+                              </div>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="mb-2 block text-xs font-medium text-gray-500">Image artiste</label>
+                              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-white p-3">
+                                <input
+                                  id={`artist-image-${artist.id}`}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleArtistImageUpload(artist.id, e.target.files?.[0] ?? null)}
+                                />
+                                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-festigo/15 bg-gradient-to-br from-festigo/10 to-violet-100">
+                                  {artist.imagePreview ? (
+                                    <img
+                                      src={artist.imagePreview}
+                                      alt={`Photo de ${artist.name || 'artiste'}`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <ImageIcon className="h-8 w-8 text-festigo/60" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 space-y-2">
+                                  <label
+                                    htmlFor={`artist-image-${artist.id}`}
+                                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-festigo px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover"
+                                  >
+                                    <ImageIcon className="h-3.5 w-3.5" />
+                                    {artist.imageName ? 'Changer la photo' : 'Uploader une photo'}
+                                  </label>
+                                  <p className="truncate text-xs text-gray-500">
+                                    {artist.imageName || 'Format recommandé: carré (ex: 600x600)'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>

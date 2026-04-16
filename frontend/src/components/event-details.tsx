@@ -60,9 +60,38 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
 
   // Fonction utilitaire pour gérer les images venant du backend qui pourraient être invalides
   const getImageUrl = (imagePath: string | undefined | null) => {
-    if (!imagePath) return 'https://images.unsplash.com/photo-1596826793477-814a59819a7a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1600';
-    if (imagePath.includes('example.com')) return 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Y29uY2VydHx8fHx8fDE2ODUzMjQyOTQ&ixlib=rb-4.0.3&q=80&w=1600';
-    return imagePath;
+    const fallbackImage = 'https://images.unsplash.com/photo-1596826793477-814a59819a7a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1600';
+    const value = (imagePath || '').trim();
+    if (!value) return fallbackImage;
+
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) {
+      return value;
+    }
+
+    // Nouveau format backend: /images/artists/<file> ou /images/events/<file>
+    if (value.startsWith('/images/')) {
+      return value;
+    }
+
+    const fileName = value.split('/').pop()?.split('?')[0];
+    if (fileName) return `/images/${encodeURIComponent(fileName)}`;
+
+    return value.startsWith('/') ? value : fallbackImage;
+  };
+
+  const getArtistImageUrl = (imagePath: string | undefined | null) => {
+    const value = (imagePath || '').trim();
+    if (!value) return null;
+
+    // On n'affiche plus les anciens placeholders Unsplash pour les artistes.
+    if (value.includes('images.unsplash.com')) return null;
+
+    return getImageUrl(value);
+  };
+
+  const getArtistDisplayName = (artist: Artiste | null | undefined) => {
+    if (!artist) return 'Artiste inconnu';
+    return artist.nomArtiste || artist.nom || (artist.id ? `Artiste #${artist.id}` : 'Artiste inconnu');
   };
 
   if (isLoading) {
@@ -167,7 +196,7 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
             {(mainArtist || guestArtists.length > 0) && (
               <section>
                 <h3 className="mb-4 border-b border-slate-200 pb-2 text-2xl font-semibold text-slate-900">
-                  Artistes en vedette
+                  Artistes à l'affiche
                 </h3>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   {/* Affichage de l'artiste principal */}
@@ -177,11 +206,11 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
                         <Star className="h-5 w-5" aria-hidden />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{mainArtist.nomArtiste}</p>
-                        <p className="text-sm text-festigo font-medium">Headliner</p>
+                        <p className="font-semibold text-slate-900">{getArtistDisplayName(mainArtist)}</p>
+                        <p className="text-sm text-festigo font-medium">En vedette</p>
                       </div>
-                      {mainArtist.photoUrl && !mainArtist.photoUrl.includes("example.com") && (
-                         <img src={mainArtist.photoUrl} alt={mainArtist.nomArtiste} className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                      {getArtistImageUrl(mainArtist.photoUrl) && (
+                         <img src={getArtistImageUrl(mainArtist.photoUrl)!} alt={getArtistDisplayName(mainArtist)} className="h-10 w-10 rounded-full object-cover shadow-sm" />
                       )}
                     </div>
                   )}
@@ -196,11 +225,11 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
                         <Users className="h-4 w-4" aria-hidden />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{artist.nomArtiste}</p>
+                        <p className="font-semibold text-slate-900">{getArtistDisplayName(artist)}</p>
                         <p className="text-sm text-slate-500">Special Guest</p>
                       </div>
-                       {artist.photoUrl && !artist.photoUrl.includes("example.com") && (
-                         <img src={artist.photoUrl} alt={artist.nomArtiste} className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                       {getArtistImageUrl(artist.photoUrl) && (
+                         <img src={getArtistImageUrl(artist.photoUrl)!} alt={getArtistDisplayName(artist)} className="h-10 w-10 rounded-full object-cover shadow-sm" />
                       )}
                     </div>
                   ))}

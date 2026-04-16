@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, fetchApiRaw } from './api';
 
 export enum GenreMusical {
   POP = 'POP',
@@ -51,6 +51,15 @@ export const eventService = {
     return fetchApi<Event>('/events', {
       method: 'POST',
       body: JSON.stringify(eventData),
+    });
+  },
+
+  uploadEventImage: async (id: number, file: File): Promise<Event> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return fetchApiRaw<Event>(`/events/${id}/image`, {
+      method: 'POST',
+      body: formData,
     });
   },
 
