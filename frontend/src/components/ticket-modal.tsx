@@ -1,62 +1,160 @@
+import React from 'react';
 import { X, Check, Calendar, MapPin, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { eventService, Event } from '../services/eventService';
+import { typeBilletService, TypeBilletType, type TypeBillet } from '../services/typeBilletService';
 
-interface TicketTier {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-  available: number;
-  features: string[];
+const TYPE_ORDER: TypeBilletType[] = [TypeBilletType.GrandPublic, TypeBilletType.VIP, TypeBilletType.VVIP];
+
+function typeBilletDisplayName(type: TypeBilletType): string {
+  switch (type) {
+    case TypeBilletType.GrandPublic:
+      return 'Grand public';
+    case TypeBilletType.VIP:
+      return 'VIP';
+    case TypeBilletType.VVIP:
+      return 'VVIP';
+    default:
+      return type;
+  }
 }
 
-const ticketTiers: TicketTier[] = [
-  {
-    id: 'early-bird',
-    name: 'Early Bird',
-    price: 45,
-    description: 'Limited time offer - save 30%',
-    available: 87,
-    features: ['General Admission', 'Standing Area', 'Access to Main Stage'],
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    price: 65,
-    description: 'Best value for money',
-    available: 342,
-    features: ['General Admission', 'Standing Area', 'Access to All Stages', 'Merchandise Discount'],
-  },
-  {
-    id: 'vip',
-    name: 'VIP Experience',
-    price: 150,
-    description: 'Premium concert experience',
-    available: 23,
-    features: [
-      'Reserved Seating',
-      'Priority Entry',
-      'VIP Lounge Access',
-      'Complimentary Drinks',
-      'Meet & Greet Opportunity',
-      'Exclusive Merchandise',
-    ],
-  },
-];
+function typeBilletShortDescription(type: TypeBilletType): string {
+  switch (type) {
+    case TypeBilletType.GrandPublic:
+      return 'Accès général à la salle';
+    case TypeBilletType.VIP:
+      return 'Catégorie intermédiaire';
+    case TypeBilletType.VVIP:
+      return 'Expérience premium';
+    default:
+      return '';
+  }
+}
+
+interface TicketTierRow {
+  id: number;
+  name: string;
+  price: number;
+  available: number;
+  description: string;
+  features: string[];
+  type: TypeBilletType;
+}
 
 interface TicketModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Événement concerné ; requis pour charger les tarifs depuis `type_billet`. */
+  eventId: number | null;
 }
 
-export function TicketModal({ isOpen, onClose }: TicketModalProps) {
-  const [selectedTier, setSelectedTier] = useState<string>('standard');
+export function TicketModal({ isOpen, onClose, eventId }: TicketModalProps) {
+  const [event, setEvent] = useState<Event | null>(null);
+  const [ticketTiers, setTicketTiers] = useState<TicketTierRow[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedTierId, setSelectedTierId] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
+
+  const loadModalData = useCallback(async () => {
+    if (!eventId) {
+      setLoadError('Aucun événement sélectionné.');
+      setEvent(null);
+      setTicketTiers([]);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [eventData, types] = await Promise.all([
+        eventService.getEventById(eventId),
+        typeBilletService.getTypeBilletsByEventId(eventId),
+      ]);
+
+      setEvent(eventData);
+
+      const withId = types.filter((t): t is TypeBillet & { id: number } => typeof t.id === 'number' && t.id >= 0);
+      withId.sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
+
+      const rows: TicketTierRow[] = withId.map((t) => ({
+        id: t.id,
+        name: typeBilletDisplayName(t.type),
+        price: t.prix,
+        available: t.stock,
+        description: typeBilletShortDescription(t.type),
+        type: t.type,
+        features: [
+          `${t.stock} place${t.stock > 1 ? 's' : ''} au tarif`,
+          `Prix unitaire TTC : ${t.prix} €`,
+          t.type === TypeBilletType.VVIP ? 'Catégorie la plus exclusive' : 'Réservation FestiGo',
+        ],
+      }));
+
+      setTicketTiers(rows);
+      const firstSelectable = rows.find((r) => r.available > 0);
+      setSelectedTierId(firstSelectable ? String(firstSelectable.id) : rows.length ? String(rows[0].id) : '');
+      setQuantity(1);
+    } catch (e) {
+      console.error(e);
+      setLoadError('Impossible de charger les billets pour cet événement.');
+      setEvent(null);
+      setTicketTiers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void loadModalData();
+  }, [isOpen, loadModalData]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEvent(null);
+      setTicketTiers([]);
+      setLoadError(null);
+      setSelectedTierId('');
+      setQuantity(1);
+    }
+  }, [isOpen]);
+
+  const selectedTierData = useMemo(
+    () => ticketTiers.find((tier) => String(tier.id) === selectedTierId),
+    [ticketTiers, selectedTierId]
+  );
+
+  const maxPerOrder = useMemo(() => {
+    if (!selectedTierData || selectedTierData.available <= 0) return 1;
+    return Math.min(10, selectedTierData.available);
+  }, [selectedTierData]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedTierData || selectedTierData.available <= 0) return;
+    const cap = Math.min(10, selectedTierData.available);
+    setQuantity((q) => Math.min(Math.max(1, q), cap));
+  }, [isOpen, selectedTierId, selectedTierData?.id, selectedTierData?.available]);
 
   if (!isOpen) return null;
 
-  const selectedTierData = ticketTiers.find(tier => tier.id === selectedTier);
-  const totalPrice = selectedTierData ? selectedTierData.price * quantity : 0;
+  const totalPrice =
+    selectedTierData && selectedTierData.available > 0 ? selectedTierData.price * quantity : 0;
+
+  const formatEventDate = () => {
+    if (!event?.date) return 'Date à confirmer';
+    try {
+      return new Date(event.date).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return event.date;
+    }
+  };
 
   return (
     <div
@@ -65,143 +163,186 @@ export function TicketModal({ isOpen, onClose }: TicketModalProps) {
       aria-modal="true"
       aria-labelledby="ticket-modal-title"
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-hidden />
 
-      {/* Modal — colonne flex pour que le pied ne soit jamais rogné par max-height */}
       <div className="relative flex max-h-[min(90dvh,100vh)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg">
-        {/* Header */}
         <div className="flex shrink-0 items-start justify-between border-b border-border p-6 md:p-8">
-          <div className="flex-1">
-            <h2 id="ticket-modal-title" className="mb-2 text-xl font-semibold text-foreground">
-              Purple Lights Festival
+          <div className="min-w-0 flex-1 pr-4">
+            <h2 id="ticket-modal-title" className="mb-2 truncate text-xl font-semibold text-foreground">
+              {event?.nom || 'Événement'}
             </h2>
             <div className="flex flex-col gap-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                <span>July 15, 2026</span>
+                <Calendar className="h-4 w-4 shrink-0" />
+                <span>{formatEventDate()}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                <span>8:00 PM - 11:30 PM</span>
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>{event?.heure ? String(event.heure).slice(0, 5) : 'Heure à confirmer'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
-                <span>The Grand Arena, Los Angeles, CA</span>
+                <MapPin className="h-4 w-4 shrink-0" />
+                <span className="line-clamp-2">{event?.lieu || 'Lieu à confirmer'}</span>
               </div>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-lg hover:bg-muted flex items-center justify-center transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Contenu scrollable (min-h-0 obligatoire avec flex-1 pour que overflow fonctionne) */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="p-6 md:p-8">
-            <h3 className="text-lg font-semibold mb-6 text-foreground">Sélectionnez votre billet</h3>
+            <h3 className="mb-6 text-lg font-semibold text-foreground">Sélectionnez votre billet</h3>
 
-            <div className="space-y-4 mb-8">
-              {ticketTiers.map((tier) => (
-                <div
-                  key={tier.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedTier(tier.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && setSelectedTier(tier.id)}
-                  className={`cursor-pointer rounded-xl border p-6 transition-colors ${
-                    selectedTier === tier.id
-                      ? 'border-accent bg-accent/5 shadow-sm ring-2 ring-accent/20'
-                      : 'border-border hover:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Radio Button */}
-                    <div
-                      className={`mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                        selectedTier === tier.id ? 'border-accent bg-accent' : 'border-border'
-                      }`}
-                    >
-                      {selectedTier === tier.id && (
-                        <Check className="w-3 h-3 text-white" />
-                      )}
-                    </div>
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                <p className="text-sm">Chargement des tarifs…</p>
+              </div>
+            )}
 
-                    {/* Tier Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div>
-                          <h4 className="text-lg font-semibold mb-1 text-foreground">{tier.name}</h4>
-                          <p className="text-sm text-muted-foreground">{tier.description}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xl font-semibold text-foreground">€{tier.price}</p>
-                          <p className="text-xs text-muted-foreground">{tier.available} left</p>
-                        </div>
-                      </div>
+            {!isLoading && loadError && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center text-sm text-destructive">
+                {loadError}
+              </div>
+            )}
 
-                      {/* Features */}
-                      <div className="grid grid-cols-2 gap-2 mt-4">
-                        {tier.features.map((feature, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <Check className="w-3.5 h-3.5 text-accent flex-shrink-0" />
-                            <span className="text-sm text-muted-foreground">{feature}</span>
+            {!isLoading && !loadError && ticketTiers.length === 0 && (
+              <div className="rounded-xl border border-border bg-muted/30 p-8 text-center text-muted-foreground">
+                Aucun tarif n&apos;est disponible pour cet événement pour le moment.
+              </div>
+            )}
+
+            {!isLoading && !loadError && ticketTiers.length > 0 && (
+              <>
+                <div className="mb-8 space-y-4">
+                  {ticketTiers.map((tier) => {
+                    const soldOut = tier.available <= 0;
+                    const isSelected = String(tier.id) === selectedTierId;
+                    return (
+                      <div
+                        key={tier.id}
+                        role="button"
+                        tabIndex={soldOut ? -1 : 0}
+                        onClick={() => {
+                          if (!soldOut) setSelectedTierId(String(tier.id));
+                        }}
+                        onKeyDown={(e) => {
+                          if (!soldOut && e.key === 'Enter') setSelectedTierId(String(tier.id));
+                        }}
+                        className={`rounded-xl border p-6 transition-colors ${
+                          soldOut
+                            ? 'cursor-not-allowed border-border bg-muted/20 opacity-60'
+                            : isSelected
+                              ? 'cursor-pointer border-accent bg-accent/5 shadow-sm ring-2 ring-accent/20'
+                              : 'cursor-pointer border-border hover:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                              soldOut
+                                ? 'border-muted bg-muted'
+                                : isSelected
+                                  ? 'border-accent bg-accent'
+                                  : 'border-border'
+                            }`}
+                          >
+                            {isSelected && !soldOut && <Check className="h-3 w-3 text-white" />}
                           </div>
-                        ))}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex flex-wrap items-start justify-between gap-4">
+                              <div>
+                                <h4 className="mb-1 text-lg font-semibold text-foreground">{tier.name}</h4>
+                                <p className="text-sm text-muted-foreground">{tier.description}</p>
+                                {soldOut && (
+                                  <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-destructive">
+                                    Complet
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0 text-right">
+                                <p className="text-xl font-semibold text-foreground">€{tier.price.toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {soldOut ? '0 place' : `${tier.available} place${tier.available > 1 ? 's' : ''}`}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {tier.features.map((feature, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <Check className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
+                                  <span className="text-sm text-muted-foreground">{feature}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+
+                <div className="border-t border-border pt-6">
+                  <label className="mb-3 block text-sm font-medium text-foreground">Nombre de billets</label>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <button
+                      type="button"
+                      disabled={!selectedTierData || selectedTierData.available <= 0}
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card font-medium shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      −
+                    </button>
+                    <span className="w-12 text-center text-xl font-medium text-foreground">{quantity}</span>
+                    <button
+                      type="button"
+                      disabled={!selectedTierData || selectedTierData.available <= 0}
+                      onClick={() => setQuantity((q) => Math.min(maxPerOrder, q + 1))}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card font-medium shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      +
+                    </button>
+                    <span className="text-sm text-muted-foreground">
+                      Maximum {maxPerOrder} billet{maxPerOrder > 1 ? 's' : ''} (limite commande ou stock)
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Quantity Selector */}
-            <div className="border-t border-border pt-6">
-              <label className="block text-sm font-medium mb-3 text-foreground">Nombre de billets</label>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 rounded-lg border border-border bg-card shadow-sm hover:bg-muted transition-colors flex items-center justify-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  −
-                </button>
-                <span className="text-xl font-medium w-12 text-center text-foreground">{quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                  className="w-10 h-10 rounded-lg border border-border bg-card shadow-sm hover:bg-muted transition-colors flex items-center justify-center font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  +
-                </button>
-                <span className="text-sm text-muted-foreground ml-2">Maximum 10 billets par commande</span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Footer — toujours visible sous la zone scroll */}
         <div className="shrink-0 border-t border-border bg-muted/30 p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Montant total</p>
+              <p className="mb-1 text-sm text-muted-foreground">Montant total</p>
               <p className="text-2xl font-semibold text-foreground">€{totalPrice.toFixed(2)}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 border border-border rounded-lg bg-card shadow-sm hover:bg-muted transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="rounded-lg border border-border bg-card px-6 py-3 font-medium shadow-sm transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Annuler
               </button>
               <button
                 type="button"
-                className="px-8 py-3 bg-accent text-accent-foreground rounded-lg shadow-sm hover:opacity-90 transition-colors font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                disabled={
+                  !selectedTierData ||
+                  selectedTierData.available <= 0 ||
+                  ticketTiers.length === 0 ||
+                  isLoading
+                }
+                className="rounded-lg bg-accent px-8 py-3 font-medium text-accent-foreground shadow-sm transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Valider
               </button>

@@ -159,9 +159,7 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
           <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl">
             {event.nom}
           </h2>
-          {mainArtist && (
-             <p className="mt-2 text-lg text-slate-200">Avec {mainArtist.nomArtiste}</p>
-          )}
+          
           <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-300">
             <span className="inline-flex items-center gap-2">
               <Calendar className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />

@@ -13,6 +13,7 @@ import {
   type FanAppSection,
 } from './components/user-dashboard';
 import { UserAppNavbar } from './components/user-app-navbar';
+import { authService } from './services/authService';
 
 type View = 'dashboard' | 'event-details' | 'login' | 'signup' | 'admin-settings' | 'fan';
 
@@ -41,43 +42,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* View Switcher - Demo only */}
-      <div className="fixed bottom-8 left-1/2 z-50 flex max-w-[90vw] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-xl border border-border bg-card p-1.5 shadow-md">
-        <button
-          onClick={() => setCurrentView('login')}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${currentView === 'login' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        >
-          Login
-        </button>
-        <button
-          onClick={() => setCurrentView('signup')}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${currentView === 'signup' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        >
-          Sign Up
-        </button>
-        <button
-          onClick={() => {
-            setCurrentView('fan');
-            setFanSection('discovery');
-          }}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${currentView === 'fan' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        >
-          Fan (Découverte)
-        </button>
-        <button
-          onClick={() => setCurrentView('event-details')}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${currentView === 'event-details' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        >
-          Event Details
-        </button>
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${currentView === 'dashboard' ? 'bg-accent text-accent-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        >
-          Organizer
-        </button>
-      </div>
-
       {currentView === 'login' && (
         <LoginFestive
           onNavigateToSignup={() => setCurrentView('signup')}
@@ -98,7 +62,14 @@ export default function App() {
           onLoginAsOrganizer={() => setCurrentView('dashboard')}
         />
       )}
-      {currentView === 'dashboard' && <OrganizerDashboard />}
+      {currentView === 'dashboard' && (
+        <OrganizerDashboard
+          onLogout={() => {
+            authService.logout();
+            setCurrentView('login');
+          }}
+        />
+      )}
       {currentView === 'event-details' && selectedEventId && (
         <EventDetails eventId={selectedEventId} onBookTickets={handleBookTickets} onBack={handleBackToEvents} />
       )}
@@ -111,18 +82,26 @@ export default function App() {
             sectionTitle={fanAppSectionTitle(fanSection)}
             onDiscoverEvents={() => setFanSection('discovery')}
             onLogin={() => setCurrentView('login')}
+            onLogout={() => {
+              authService.logout();
+              setCurrentView('login');
+            }}
             upcomingTicketCount={accountBadgeCounts.upcomingTickets}
             favoritesCount={accountBadgeCounts.favorites}
           />
           {fanSection === 'discovery' ? (
             <UserDiscovery onEventSelect={handleEventSelect} />
           ) : (
-            <UserDashboard activeView={fanSection} onDiscoverEvents={() => setFanSection('discovery')} />
+            <UserDashboard
+              activeView={fanSection}
+              onDiscoverEvents={() => setFanSection('discovery')}
+              onLogin={() => setCurrentView('login')}
+            />
           )}
         </div>
       )}
 
-      <TicketModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <TicketModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} eventId={selectedEventId} />
     </div>
   );
 }

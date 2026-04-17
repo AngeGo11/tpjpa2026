@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Ticket, Bookmark, Download, Send, QrCode, Calendar, MapPin, Clock } from 'lucide-react';
+import { authService } from '../services/authService';
+import { getUserDisplayName, getUserFirstName, getUserInitials } from '../services/userService';
 
 export type UserDashboardView = 'tickets' | 'favorites' | 'profile' | 'settings' | 'help';
 export type FanAppSection = 'discovery' | UserDashboardView;
@@ -51,7 +53,7 @@ const mockTickets: TicketData[] = [
     time: '10:00 PM',
     venue: 'Metro Electronic Hall',
     location: 'Brooklyn, NY',
-    ticketType: 'Standard',
+    ticketType: 'GrandPublic',
     seatNumber: 'C-45',
     status: 'upcoming',
     qrCode: 'QR_12346',
@@ -64,7 +66,7 @@ const mockTickets: TicketData[] = [
     time: '7:00 PM',
     venue: 'Valley Stadium',
     location: 'Austin, TX',
-    ticketType: 'Premium',
+    ticketType: 'VVIP',
     seatNumber: 'B-28',
     status: 'upcoming',
     qrCode: 'QR_12347',
@@ -77,7 +79,7 @@ const mockTickets: TicketData[] = [
     time: '7:30 PM',
     venue: 'Symphony Hall',
     location: 'Boston, MA',
-    ticketType: 'Standard',
+    ticketType: 'GrandPublic',
     seatNumber: 'D-56',
     status: 'past',
     qrCode: 'QR_12348',
@@ -163,10 +165,13 @@ export function fanAppSectionTitle(section: FanAppSection): string {
 
 export interface UserDashboardProps {
   onDiscoverEvents?: () => void;
+  onLogin?: () => void;
   activeView: UserDashboardView;
 }
 
-export function UserDashboard({ onDiscoverEvents, activeView }: UserDashboardProps) {
+export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDashboardProps) {
+  const currentUser = authService.getCurrentUser();
+  const firstName = currentUser ? getUserFirstName(currentUser) : null;
   const [ticketFilter, setTicketFilter] = useState<TicketStatus>('upcoming');
 
   const filteredTickets = mockTickets.filter((ticket) => ticket.status === ticketFilter);
@@ -175,7 +180,7 @@ export function UserDashboard({ onDiscoverEvents, activeView }: UserDashboardPro
     switch (type.toLowerCase()) {
       case 'vip access':
         return 'bg-festigo/10 text-festigo border border-festigo/20';
-      case 'premium':
+      case 'VVIP':
         return 'bg-festigo/10 text-festigo border border-festigo/25';
       default:
         return 'bg-gray-50 text-gray-700 border border-gray-200';
@@ -204,7 +209,9 @@ export function UserDashboard({ onDiscoverEvents, activeView }: UserDashboardPro
         {activeView === 'tickets' && (
           <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
             <div className="mb-8">
-              <h2 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">Bonjour, James</h2>
+              <h2 className="mb-2 text-3xl font-bold tracking-tight text-gray-900">
+                Bonjour{firstName ? `, ${firstName}` : ''}
+              </h2>
               <p className="text-gray-500">Tes billets, au format portefeuille numérique.</p>
             </div>
 
@@ -326,14 +333,7 @@ export function UserDashboard({ onDiscoverEvents, activeView }: UserDashboardPro
                                 <p>{ticket.location}</p>
                               </div>
                             </div>
-                            <div className="flex items-start gap-2 text-sm text-gray-500">
-                              <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-                              <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Siège</p>
-                                <p className="font-medium text-gray-900">{ticket.seatNumber}</p>
-                                <p className="text-gray-500">{ticket.ticketType}</p>
-                              </div>
-                            </div>
+                            
                           </div>
 
                           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -474,51 +474,69 @@ export function UserDashboard({ onDiscoverEvents, activeView }: UserDashboardPro
             <h2 className="text-3xl font-bold text-gray-900">Profil</h2>
             <p className="mt-1 text-gray-500">Tes informations personnelles</p>
 
-            <div className="mt-10 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-              <div className="mb-8 flex items-center gap-6 border-b border-gray-100 pb-8">
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-festigo text-3xl font-bold text-white">
-                  JA
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">James Aldrino</h3>
-                  <p className="text-sm text-gray-500">Membre depuis janvier 2026</p>
-                </div>
+            {!currentUser ? (
+              <div className="mt-10 rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+                <p className="text-gray-600">Connecte-toi pour afficher et modifier ton profil.</p>
+                {onLogin && (
+                  <button
+                    type="button"
+                    onClick={onLogin}
+                    className="mt-6 rounded-xl bg-festigo px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                  >
+                    Se connecter
+                  </button>
+                )}
               </div>
+            ) : (
+              <div className="mt-10 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+                <div className="mb-8 flex items-center gap-6 border-b border-gray-100 pb-8">
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-festigo text-3xl font-bold text-white">
+                    {getUserInitials(currentUser)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-xl font-bold text-gray-900">{getUserDisplayName(currentUser)}</h3>
+                    <p className="truncate text-sm text-gray-500">{currentUser.email}</p>
+                  </div>
+                </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Nom complet</label>
-                  <input
-                    type="text"
-                    defaultValue="James Aldrino"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
-                  />
+                <div className="space-y-6">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Nom complet</label>
+                    <input
+                      type="text"
+                      key={`nom-${currentUser.id}`}
+                      defaultValue={currentUser.nom}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">E-mail</label>
+                    <input
+                      type="email"
+                      key={`email-${currentUser.id}`}
+                      defaultValue={currentUser.email}
+                      readOnly
+                      className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Téléphone</label>
+                    <input
+                      type="tel"
+                      placeholder="Non renseigné"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">E-mail</label>
-                  <input
-                    type="email"
-                    defaultValue="james.aldrino@email.com"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Téléphone</label>
-                  <input
-                    type="tel"
-                    defaultValue="+1 (555) 123-4567"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
-                  />
-                </div>
+
+                <button
+                  type="button"
+                  className="mt-8 rounded-xl bg-festigo px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                >
+                  Enregistrer
+                </button>
               </div>
-
-              <button
-                type="button"
-                className="mt-8 rounded-xl bg-festigo px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
-              >
-                Enregistrer
-              </button>
-            </div>
+            )}
           </div>
         )}
 

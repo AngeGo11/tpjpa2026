@@ -26,6 +26,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { eventService, Event, GenreMusical } from '../services/eventService';
 import { authService } from '../services/authService';
 import { artisteService, Artiste } from '../services/artisteService';
+import { typeBilletService, TypeBilletType } from '../services/typeBilletService';
 
 type OrganizerView = 'dashboard' | 'my-events';
 
@@ -43,7 +44,12 @@ const inputFocusClass =
 
 const selectFieldClass = `${inputFocusClass} cursor-pointer appearance-none pr-10`;
 const sectionCardClass = 'rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8';
-export function OrganizerDashboard() {
+
+type OrganizerDashboardProps = {
+  onLogout: () => void;
+};
+
+export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
   const [view, setView] = useState<OrganizerView>('dashboard');
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
@@ -68,10 +74,10 @@ export function OrganizerDashboard() {
     capacity: '',
     description: '',
     category: '',
-    standardPrice: '',
-    standardQuantity: '',
-    premiumPrice: '',
-    premiumQuantity: '',
+    GrandPublicPrice: '',
+    GrandPublicQuantity: '',
+    VVIPPrice: '',
+    VVIPQuantity: '',
     vipPrice: '',
     vipQuantity: '',
     eventImageName: '',
@@ -177,6 +183,61 @@ export function OrganizerDashboard() {
       return;
     }
 
+    const ticketTierRows: Array<{
+      label: string;
+      type: TypeBilletType;
+      priceStr: string;
+      qtyStr: string;
+    }> = [
+      { label: 'GrandPublic', type: TypeBilletType.GrandPublic, priceStr: eventFormData.GrandPublicPrice, qtyStr: eventFormData.GrandPublicQuantity },
+      { label: 'VVIP', type: TypeBilletType.VIP, priceStr: eventFormData.VVIPPrice, qtyStr: eventFormData.VVIPQuantity },
+      { label: 'VIP', type: TypeBilletType.VVIP, priceStr: eventFormData.vipPrice, qtyStr: eventFormData.vipQuantity },
+    ];
+
+    for (const row of ticketTierRows) {
+      const hasP = row.priceStr.trim() !== '';
+      const hasQ = row.qtyStr.trim() !== '';
+      if (hasP !== hasQ) {
+        setSaveMessage({
+          text: `Renseignez le prix et la quantité pour les billets ${row.label}, ou laissez les deux champs vides.`,
+          type: 'error',
+        });
+        return;
+      }
+    }
+
+    const ticketTiersToCreate = ticketTierRows
+      .filter((row) => row.priceStr.trim() !== '' && row.qtyStr.trim() !== '')
+      .map((row) => ({
+        type: row.type,
+        prix: parseFloat(row.priceStr.replace(',', '.')),
+        stock: parseInt(row.qtyStr, 10),
+      }));
+
+    if (ticketTiersToCreate.length === 0) {
+      setSaveMessage({
+        text: 'Ajoutez au moins une catégorie de billet (prix et quantité) : GrandPublic, VVIP ou VIP.',
+        type: 'error',
+      });
+      return;
+    }
+
+    const invalidTier = ticketTiersToCreate.find(
+      (t) =>
+        !Number.isFinite(t.prix) ||
+        t.prix <= 0 ||
+        !Number.isFinite(t.stock) ||
+        !Number.isInteger(t.stock) ||
+        t.stock <= 0
+    );
+    if (invalidTier) {
+      setSaveMessage({
+        text: 'Chaque tarif renseigné doit avoir un prix et une quantité strictement supérieurs à 0 (quantités en nombres entiers).',
+        type: 'error',
+      });
+      return;
+    }
+
     setIsSaving(true);
     setSaveMessage(null);
 
@@ -265,16 +326,29 @@ export function OrganizerDashboard() {
       };
 
       const createdEvent = await eventService.createEvent(newEventData);
-      if (eventFormData.eventImageFile && createdEvent.id) {
+      if (!createdEvent.id) {
+        throw new Error("Réponse serveur invalide : l'événement créé n'a pas d'identifiant.");
+      }
+
+      if (eventFormData.eventImageFile) {
         await eventService.uploadEventImage(createdEvent.id, eventFormData.eventImageFile);
       }
 
-      setSaveMessage({text: "L'événement a été créé avec succès !", type: 'success'});
+      for (const tier of ticketTiersToCreate) {
+        await typeBilletService.createTypeBillet({
+          eventId: createdEvent.id,
+          type: tier.type,
+          prix: tier.prix,
+          stock: tier.stock,
+        });
+      }
+
+      setSaveMessage({text: "L'événement et les tarifs ont été enregistrés avec succès !", type: 'success'});
 
       setEventFormData({
         eventName: '', eventDate: '', eventTime: '', venue: '', address: '', city: '',
         capacity: '', description: '', category: '',
-        standardPrice: '', standardQuantity: '', premiumPrice: '', premiumQuantity: '',
+        GrandPublicPrice: '', GrandPublicQuantity: '', VVIPPrice: '', VVIPQuantity: '',
         vipPrice: '', vipQuantity: '',
         eventImageName: '', eventImagePreview: '', eventImageFile: null,
       });
@@ -325,10 +399,7 @@ export function OrganizerDashboard() {
         </nav>
 
         <div className="border-t border-gray-200 p-4">
-          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 cursor-pointer" onClick={() => {
-              authService.logout();
-              window.location.reload();
-          }}>
+          <div className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50" onClick={onLogout}>
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-festigo text-xs font-semibold text-white uppercase">
               {organizerName.substring(0, 2)}
             </div>
@@ -784,6 +855,107 @@ export function OrganizerDashboard() {
                   </div>
                 </div>
 
+                <div className={`${sectionCardClass} mb-6`}>
+                  <div className="mb-8 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-festigo/10">
+                      <Ticket className="h-5 w-5 text-festigo" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Tarifs</h3>
+                      <p className="text-sm text-gray-500">Prix et quantites par categorie</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-6">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Tag className="h-5 w-5 text-gray-600" />
+                        <h4 className="font-semibold text-gray-900">Billets GrandPublic</h4>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Prix (EUR)</label>
+                          <input
+                            type="number"
+                            value={eventFormData.GrandPublicPrice}
+                            onChange={(e) => handleInputChange('GrandPublicPrice', e.target.value)}
+                            placeholder="50"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Quantite</label>
+                          <input
+                            type="number"
+                            value={eventFormData.GrandPublicQuantity}
+                            onChange={(e) => handleInputChange('GrandPublicQuantity', e.target.value)}
+                            placeholder="3000"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-festigo/25 bg-festigo/10 p-6">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Tag className="h-5 w-5 text-festigo" />
+                        <h4 className="font-semibold text-gray-900">Billets VVIP</h4>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Prix (EUR)</label>
+                          <input
+                            type="number"
+                            value={eventFormData.VVIPPrice}
+                            onChange={(e) => handleInputChange('VVIPPrice', e.target.value)}
+                            placeholder="100"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Quantite</label>
+                          <input
+                            type="number"
+                            value={eventFormData.VVIPQuantity}
+                            onChange={(e) => handleInputChange('VVIPQuantity', e.target.value)}
+                            placeholder="1500"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-festigo/25 bg-festigo/10 p-6">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Tag className="h-5 w-5 text-festigo" />
+                        <h4 className="font-semibold text-gray-900">Billets VIP</h4>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Prix (EUR)</label>
+                          <input
+                            type="number"
+                            value={eventFormData.vipPrice}
+                            onChange={(e) => handleInputChange('vipPrice', e.target.value)}
+                            placeholder="250"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-500">Quantite</label>
+                          <input
+                            type="number"
+                            value={eventFormData.vipQuantity}
+                            onChange={(e) => handleInputChange('vipQuantity', e.target.value)}
+                            placeholder="500"
+                            className={inputFocusClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
@@ -796,7 +968,7 @@ export function OrganizerDashboard() {
                     }`}
                   >
                     <Save className="h-5 w-5" />
-                    {isSaving ? 'Création en cours...' : "Enregistrer l'événement"}
+                    {isSaving ? 'Creation en cours...' : "Enregistrer & publier l'evenement"}
                   </button>
                 </div>
               </div>

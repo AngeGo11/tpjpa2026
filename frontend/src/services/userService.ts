@@ -6,15 +6,47 @@ export enum Role {
 }
 
 /**
- * Correspond à l'entité Users.java du backend.
+ * Correspond à l'entité Users.java / UsersDTO côté backend (login, register).
  */
 export interface User {
   id: number;
   nom: string;
   email: string;
-  mdp: string; // Mot de passe (Attention : généralement on ne le renvoie pas au frontend)
+  mdp?: string;
   role: Role;
-  // commandes: Commande[] - On peut l'ajouter si on l'utilise
+  /** Présent pour les comptes organisateur (sous-classe Organizer). */
+  nomOrganisation?: string | null;
+}
+
+/** Libellé principal : organisation pour un organisateur, sinon nom affiché. */
+export function getUserDisplayName(user: User): string {
+  if (user.role === Role.Organizer && user.nomOrganisation?.trim()) {
+    return user.nomOrganisation.trim();
+  }
+  const n = user.nom?.trim();
+  if (n) return n;
+  const local = user.email?.split('@')[0];
+  return local || 'Utilisateur';
+}
+
+/** Prénom ou premier mot pour les salutations (ex. « Bonjour, Marie »). */
+export function getUserFirstName(user: User): string {
+  const n = user.nom?.trim();
+  if (!n) return user.email?.split('@')[0] || 'toi';
+  return n.split(/\s+/)[0] || n;
+}
+
+export function getUserInitials(user: User): string {
+  const display =
+    user.role === Role.Organizer && user.nomOrganisation?.trim()
+      ? user.nomOrganisation.trim()
+      : user.nom?.trim() || user.email || '?';
+  const parts = display.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+  const single = parts[0] || '?';
+  return single.slice(0, 2).toUpperCase();
 }
 
 export const userService = {

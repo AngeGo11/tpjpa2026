@@ -1,63 +1,76 @@
 import { fetchApi } from './api';
-import { Event } from './eventService';
 
-export enum Type {
+/** Même énumération que `TypeBillet.Type` côté Java (table `type_billet`). */
+export enum TypeBilletType {
   GrandPublic = 'GrandPublic',
   VIP = 'VIP',
-  VVIP = 'VVIP'
+  VVIP = 'VVIP',
 }
 
 /**
- * Correspond à l'entité TypeBillet.java du backend.
+ * Correspond à l'entité TypeBillet / TypeBilletDTO du backend.
  */
 export interface TypeBillet {
-  id: number;
-  event: Event; // Ou just l'ID : number si l'API renvoie seulement l'ID
-  type: Type;
+  id?: number;
+  eventId?: number;
+  type: TypeBilletType;
   prix: number;
   stock: number;
 }
 
+export type CreateTypeBilletPayload = {
+  eventId: number;
+  type: TypeBilletType;
+  prix: number;
+  stock: number;
+};
+
 export const typeBilletService = {
   /**
-   * Récupérer tous les types de billets (GET /api/types-billet)
+   * Liste des types de billets (GET /api/type_billet/)
    */
   getAllTypeBillets: async (): Promise<TypeBillet[]> => {
-    return fetchApi<TypeBillet[]>('/types-billet');
+    return fetchApi<TypeBillet[]>('/type_billet');
   },
 
   /**
-   * Récupérer un type de billet par ID (GET /api/types-billet/{id})
+   * Détail (GET /api/type_billet/{id})
    */
   getTypeBilletById: async (id: number): Promise<TypeBillet> => {
-    return fetchApi<TypeBillet>(`/types-billet/${id}`);
+    return fetchApi<TypeBillet>(`/type_billet/${id}`);
+  },
+
+  /** Types de billets pour un événement (filtre côté client sur la liste API). */
+  getTypeBilletsByEventId: async (eventId: number): Promise<TypeBillet[]> => {
+    const list = await fetchApi<TypeBillet[]>('/type_billet');
+    return list.filter((t) => t.eventId === eventId);
   },
 
   /**
-   * Créer un type de billet (POST /api/types-billet)
+   * Création (POST /api/type_billet) — persistance en base `type_billet`.
    */
-  createTypeBillet: async (typeBilletData: Partial<TypeBillet>): Promise<TypeBillet> => {
-    return fetchApi<TypeBillet>('/types-billet', {
+  createTypeBillet: async (payload: CreateTypeBilletPayload): Promise<TypeBillet> => {
+    return fetchApi<TypeBillet>('/type_billet', {
       method: 'POST',
-      body: JSON.stringify(typeBilletData),
+      body: JSON.stringify(payload),
     });
   },
 
   /**
-   * Mettre à jour un type de billet (PUT /api/types-billet/{id})
+   * Mise à jour (non exposée par le backend actuellement — peut échouer).
    */
   updateTypeBillet: async (id: number, typeBilletData: Partial<TypeBillet>): Promise<TypeBillet> => {
-    return fetchApi<TypeBillet>(`/types-billet/${id}`, {
+    return fetchApi<TypeBillet>(`/type_billet/${id}`, {
       method: 'PUT',
       body: JSON.stringify(typeBilletData),
     });
   },
 
   /**
-   * Supprimer un type de billet (DELETE /api/types-billet/{id})
+   * Suppression (non exposée par le backend actuellement — peut échouer).
    */
   deleteTypeBillet: async (id: number): Promise<void> => {
-    return fetchApi<void>(`/types-billet/${id}`, {
+    return fetchApi<void>(`/type_billet/${id}`, {
       method: 'DELETE',
     });
   },
