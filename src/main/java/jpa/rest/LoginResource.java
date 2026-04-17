@@ -44,6 +44,10 @@ public class LoginResource {
                 userDTO.setMdp(user.getMdp());
 
                 userDTO.setRole(user.getRole());
+                if (user instanceof Organizer) {
+                    Organizer organizer = (Organizer) user;
+                    userDTO.setNomOrganisation(organizer.getNomOrganisation());
+                }
                 return Response.ok(userDTO).build();
             }
         }

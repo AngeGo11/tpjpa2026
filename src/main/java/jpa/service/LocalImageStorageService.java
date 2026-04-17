@@ -69,7 +69,7 @@ public class LocalImageStorageService {
         Files.createDirectories(targetDirectory);
         Path targetPath = targetDirectory.resolve(generatedFileName).normalize();
         try (InputStream fileData = inputStream) {
-            Files.copy(fileData, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(fileData, targetPath, GrandPublicCopyOption.REPLACE_EXISTING);
         }
 
         return normalizedSubDirectory.isEmpty()
