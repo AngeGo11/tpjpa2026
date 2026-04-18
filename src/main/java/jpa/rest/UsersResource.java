@@ -8,10 +8,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
+import jpa.dao.BilletsDAO;
 import jpa.dao.CommandeDAO;
 import jpa.dao.UsersDAO;
+import jpa.dto.BilletsDTO;
 import jpa.dto.CommandeDTO;
 import jpa.dto.UsersDTO;
+import jpa.model.Billets;
 import jpa.model.Commande;
 import jpa.model.Users;
 
@@ -76,6 +79,30 @@ public class UsersResource {
         return allCommandeForUser;
 
 
+    }
+
+    @GET
+    @Path("/{userId}/billets")
+    @Operation(summary = "Récupérer tous les billets d'un utilisateur", description = "Retourne les billets liés aux commandes de l'utilisateur (requête JPQL via BilletsDAO).")
+    @ApiResponse(responseCode = "200", description = "Liste des billets")
+    @ApiResponse(responseCode = "404", description = "Utilisateur introuvable")
+    public List<BilletsDTO> getBilletsByUserId(@PathParam("userId") Long userId) {
+        UsersDAO dao = new UsersDAO();
+        Users entity = dao.findOne(userId);
+        if (entity == null) {
+            throw new NotFoundException();
+        }
+        List<Billets> billets = new BilletsDAO().getBilletsByUser(userId);
+        List<BilletsDTO> out = new ArrayList<>();
+        for (Billets b : billets) {
+            BilletsDTO dto = new BilletsDTO(
+                    b.getCodeBarre(),
+                    b.getCommande().getId(),
+                    b.getTypeBillet().getId());
+            dto.setId(b.getId());
+            out.add(dto);
+        }
+        return out;
     }
 
     

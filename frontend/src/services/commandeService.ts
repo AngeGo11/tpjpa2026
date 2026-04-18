@@ -49,6 +49,13 @@ export const commandeService = {
   },
 
   /**
+   * Commandes d’un utilisateur (GET /api/users/{userId}/commandes).
+   */
+  getCommandesByUserId: async (userId: number): Promise<Commande[]> => {
+    return fetchApi<Commande[]>(`/users/${userId}/commandes`);
+  },
+
+  /**
    * Récupérer une commande par ID (GET /api/commandes/{id})
    */
   getCommandeById: async (id: number): Promise<Commande> => {

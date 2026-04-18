@@ -1,4 +1,5 @@
 import { fetchApi } from './api';
+import type { BilletCommandeLigne } from './commandeService';
 import { Commande } from './commandeService';
 import { TypeBillet } from './typeBilletService';
 
@@ -18,6 +19,13 @@ export const billetService = {
    */
   getAllBillets: async (): Promise<Billet[]> => {
     return fetchApi<Billet[]>('/billets');
+  },
+
+  /**
+   * Billets associés aux commandes d’un utilisateur (GET /api/users/{userId}/billets).
+   */
+  getBilletsForUser: async (userId: number): Promise<BilletCommandeLigne[]> => {
+    return fetchApi<BilletCommandeLigne[]>(`/users/${userId}/billets`);
   },
 
   /**

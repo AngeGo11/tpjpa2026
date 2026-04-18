@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { OrganizerDashboard } from './components/organizer-dashboard';
 import { UserDiscovery } from './components/user-discovery';
 import { EventDetails } from './components/event-details';
@@ -15,6 +15,7 @@ import {
 } from './components/user-dashboard';
 import { UserAppNavbar } from './components/user-app-navbar';
 import { authService } from './services/authService';
+import { countUserUpcomingTickets } from './services/userTicketsService';
 
 type View = 'dashboard' | 'event-details' | 'login' | 'signup' | 'admin-settings' | 'fan';
 
@@ -26,6 +27,22 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [recapCommandeId, setRecapCommandeId] = useState<number | null>(null);
+  const [upcomingTicketCount, setUpcomingTicketCount] = useState(0);
+
+  useEffect(() => {
+    if (currentView !== 'fan') {
+      setUpcomingTicketCount(0);
+      return;
+    }
+    const u = authService.getCurrentUser();
+    if (!u) {
+      setUpcomingTicketCount(0);
+      return;
+    }
+    countUserUpcomingTickets(u.id)
+      .then(setUpcomingTicketCount)
+      .catch(() => setUpcomingTicketCount(0));
+  }, [currentView, fanSection, recapCommandeId]);
 
   const handleEventSelect = (eventId: number) => {
     setSelectedEventId(eventId);
@@ -88,7 +105,7 @@ export default function App() {
               authService.logout();
               setCurrentView('login');
             }}
-            upcomingTicketCount={accountBadgeCounts.upcomingTickets}
+            upcomingTicketCount={upcomingTicketCount}
             favoritesCount={accountBadgeCounts.favorites}
           />
           {fanSection === 'discovery' ? (

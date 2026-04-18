@@ -1,25 +1,12 @@
-import React, { useState } from 'react';
-import { Ticket, Bookmark, Download, Send, QrCode, Calendar, MapPin, Clock } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Ticket, Bookmark, Download, Send, QrCode, Calendar, MapPin, Clock, Loader2 } from 'lucide-react';
 import { authService } from '../services/authService';
 import { getUserDisplayName, getUserFirstName, getUserInitials } from '../services/userService';
+import { fetchUserTickets, type UserTicketView } from '../services/userTicketsService';
 
 export type UserDashboardView = 'tickets' | 'favorites' | 'profile' | 'settings' | 'help';
 export type FanAppSection = 'discovery' | UserDashboardView;
 type TicketStatus = 'upcoming' | 'past';
-
-interface TicketData {
-  id: number;
-  eventName: string;
-  date: string;
-  time: string;
-  venue: string;
-  location: string;
-  ticketType: string;
-  seatNumber: string;
-  status: TicketStatus;
-  qrCode: string;
-  orderNumber: string;
-}
 
 interface FavoriteEvent {
   id: number;
@@ -31,61 +18,6 @@ interface FavoriteEvent {
   price: number;
   category: string;
 }
-
-const mockTickets: TicketData[] = [
-  {
-    id: 1,
-    eventName: 'Summer Jazz Festival',
-    date: 'July 15, 2026',
-    time: '8:00 PM',
-    venue: 'Blue Note Arena',
-    location: 'Chicago, IL',
-    ticketType: 'VIP Access',
-    seatNumber: 'A-12',
-    status: 'upcoming',
-    qrCode: 'QR_12345',
-    orderNumber: '#ORD-2026-001',
-  },
-  {
-    id: 2,
-    eventName: 'Electric Nights',
-    date: 'July 22, 2026',
-    time: '10:00 PM',
-    venue: 'Metro Electronic Hall',
-    location: 'Brooklyn, NY',
-    ticketType: 'GrandPublic',
-    seatNumber: 'C-45',
-    status: 'upcoming',
-    qrCode: 'QR_12346',
-    orderNumber: '#ORD-2026-002',
-  },
-  {
-    id: 3,
-    eventName: 'Rock the Valley',
-    date: 'August 5, 2026',
-    time: '7:00 PM',
-    venue: 'Valley Stadium',
-    location: 'Austin, TX',
-    ticketType: 'VVIP',
-    seatNumber: 'B-28',
-    status: 'upcoming',
-    qrCode: 'QR_12347',
-    orderNumber: '#ORD-2026-003',
-  },
-  {
-    id: 4,
-    eventName: 'Classical Night',
-    date: 'January 15, 2026',
-    time: '7:30 PM',
-    venue: 'Symphony Hall',
-    location: 'Boston, MA',
-    ticketType: 'GrandPublic',
-    seatNumber: 'D-56',
-    status: 'past',
-    qrCode: 'QR_12348',
-    orderNumber: '#ORD-2025-045',
-  },
-];
 
 const mockFavorites: FavoriteEvent[] = [
   {
@@ -134,9 +66,9 @@ const mockFavorites: FavoriteEvent[] = [
   },
 ];
 
+/** Compteurs statiques pour le menu (les billets à venir sont chargés dynamiquement dans `App`). */
 export function getUserAccountMenuBadgeCounts() {
   return {
-    upcomingTickets: mockTickets.filter((t) => t.status === 'upcoming').length,
     favorites: mockFavorites.length,
   };
 }
@@ -173,18 +105,47 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
   const currentUser = authService.getCurrentUser();
   const firstName = currentUser ? getUserFirstName(currentUser) : null;
   const [ticketFilter, setTicketFilter] = useState<TicketStatus>('upcoming');
+  const [userTickets, setUserTickets] = useState<UserTicketView[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState<string | null>(null);
 
-  const filteredTickets = mockTickets.filter((ticket) => ticket.status === ticketFilter);
+  const loadTickets = useCallback(async () => {
+    if (!currentUser?.id) {
+      setUserTickets([]);
+      return;
+    }
+    setTicketsLoading(true);
+    setTicketsError(null);
+    try {
+      const list = await fetchUserTickets(currentUser.id);
+      setUserTickets(list);
+    } catch (e) {
+      setTicketsError(e instanceof Error ? e.message : 'Impossible de charger tes billets.');
+      setUserTickets([]);
+    } finally {
+      setTicketsLoading(false);
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (activeView !== 'tickets') return;
+    void loadTickets();
+  }, [activeView, loadTickets]);
+
+  const filteredTickets = useMemo(() => {
+    const f = userTickets.filter((ticket) => ticket.status === ticketFilter);
+    if (ticketFilter === 'upcoming') {
+      return [...f].sort((a, b) => a.eventMs - b.eventMs);
+    }
+    return [...f].sort((a, b) => b.eventMs - a.eventMs);
+  }, [userTickets, ticketFilter]);
+
+  const upcomingCount = useMemo(() => userTickets.filter((t) => t.status === 'upcoming').length, [userTickets]);
 
   const getTicketTypeStyles = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'vip access':
-        return 'bg-festigo/10 text-festigo border border-festigo/20';
-      case 'VVIP':
-        return 'bg-festigo/10 text-festigo border border-festigo/25';
-      default:
-        return 'bg-gray-50 text-gray-700 border border-gray-200';
-    }
+    if (type === 'VVIP') return 'bg-festigo/10 text-festigo border border-festigo/25';
+    if (type === 'VIP') return 'bg-festigo/10 text-festigo border border-festigo/20';
+    return 'bg-gray-50 text-gray-700 border border-gray-200';
   };
 
   const handleDownload = (ticketId: number) => {
@@ -215,65 +176,99 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
               <p className="text-gray-500">Tes billets, au format portefeuille numérique.</p>
             </div>
 
-            <div className="mb-8 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setTicketFilter('upcoming')}
-                className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all ${
-                  ticketFilter === 'upcoming'
-                    ? 'bg-white font-semibold text-festigo shadow-sm ring-1 ring-gray-200'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300/80'
-                }`}
-              >
-                À venir
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    ticketFilter === 'upcoming' ? 'bg-festigo/15 text-festigo' : 'bg-gray-300/80 text-gray-800'
-                  }`}
-                >
-                  {mockTickets.filter((t) => t.status === 'upcoming').length}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTicketFilter('past')}
-                className={`rounded-full px-5 py-2.5 text-sm font-medium transition-all ${
-                  ticketFilter === 'past'
-                    ? 'bg-white font-semibold text-festigo shadow-sm ring-1 ring-gray-200'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300/80'
-                }`}
-              >
-                Passés
-              </button>
-            </div>
+            {!currentUser ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+                <Ticket className="mx-auto h-14 w-14 text-gray-300" strokeWidth={1.25} aria-hidden />
+                <p className="mt-4 text-lg font-semibold text-gray-900">Connecte-toi pour voir tes billets</p>
+                <p className="mt-2 text-gray-500">Tous tes achats validés apparaîtront ici.</p>
+                {onLogin && (
+                  <button
+                    type="button"
+                    onClick={onLogin}
+                    className="mt-8 rounded-xl bg-festigo px-8 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                  >
+                    Se connecter
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="mb-8 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTicketFilter('upcoming')}
+                    className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all ${
+                      ticketFilter === 'upcoming'
+                        ? 'bg-white font-semibold text-festigo shadow-sm ring-1 ring-gray-200'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300/80'
+                    }`}
+                  >
+                    À venir
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        ticketFilter === 'upcoming' ? 'bg-festigo/15 text-festigo' : 'bg-gray-300/80 text-gray-800'
+                      }`}
+                    >
+                      {upcomingCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTicketFilter('past')}
+                    className={`rounded-full px-5 py-2.5 text-sm font-medium transition-all ${
+                      ticketFilter === 'past'
+                        ? 'bg-white font-semibold text-festigo shadow-sm ring-1 ring-gray-200'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300/80'
+                    }`}
+                  >
+                    Passés
+                  </button>
+                </div>
 
-            <div className="space-y-6">
-              {filteredTickets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-20 text-center shadow-sm">
-                  <Ticket className="h-16 w-16 text-gray-300" strokeWidth={1.25} aria-hidden />
-                  <p className="mt-4 text-xl font-semibold text-gray-900">
-                    {ticketFilter === 'upcoming' ? 'Aucun événement à venir' : 'Aucun événement passé'}
-                  </p>
-                  <p className="mt-2 max-w-sm text-gray-500">
-                    Explore les concerts près de chez toi et ajoute des billets à ton portefeuille.
-                  </p>
-                  {onDiscoverEvents && ticketFilter === 'upcoming' && (
+                {ticketsError && (
+                  <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    {ticketsError}
                     <button
                       type="button"
-                      onClick={onDiscoverEvents}
-                      className="mt-8 rounded-xl bg-amber-500 px-8 py-3 text-sm font-bold text-gray-900 shadow-md transition-all hover:bg-amber-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                      onClick={() => void loadTickets()}
+                      className="ml-3 font-semibold underline decoration-red-400 hover:text-red-950"
                     >
-                      Découvrir des événements
+                      Réessayer
                     </button>
-                  )}
-                </div>
-              ) : (
-                filteredTickets.map((ticket) => {
-                  const parts = ticket.date.split(' ');
-                  const monthShort = (parts[0] ?? '—').slice(0, 3).toUpperCase();
-                  const dayNum = (parts[1] ?? '').replace(',', '') || '—';
+                  </div>
+                )}
 
-                  return (
+                <div className="space-y-6">
+                  {ticketsLoading ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white px-6 py-24 text-center shadow-sm">
+                      <Loader2 className="h-10 w-10 animate-spin text-festigo" aria-hidden />
+                      <p className="mt-4 text-sm font-medium text-gray-600">Chargement de tes billets…</p>
+                    </div>
+                  ) : filteredTickets.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-20 text-center shadow-sm">
+                      <Ticket className="h-16 w-16 text-gray-300" strokeWidth={1.25} aria-hidden />
+                      <p className="mt-4 text-xl font-semibold text-gray-900">
+                        {ticketFilter === 'upcoming' ? 'Aucun événement à venir' : 'Aucun événement passé'}
+                      </p>
+                      <p className="mt-2 max-w-sm text-gray-500">
+                        Explore les concerts près de chez toi et ajoute des billets à ton portefeuille.
+                      </p>
+                      {onDiscoverEvents && ticketFilter === 'upcoming' && (
+                        <button
+                          type="button"
+                          onClick={onDiscoverEvents}
+                          className="mt-8 rounded-xl bg-amber-500 px-8 py-3 text-sm font-bold text-gray-900 shadow-md transition-all hover:bg-amber-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                        >
+                          Découvrir des événements
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filteredTickets.map((ticket) => {
+                      const monthShort = ticket.monthShort;
+                      const dayNum = ticket.dayNum;
+
+                      return (
                     <article
                       key={ticket.id}
                       className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg"
@@ -284,7 +279,7 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                             <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">{monthShort}</p>
                             <p className="text-4xl font-black leading-none tracking-tight md:text-5xl">{dayNum}</p>
                             <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-white/70">
-                              {parts[2] ?? ''}
+                              {ticket.yearStr}
                             </p>
                           </div>
                         </div>
@@ -318,10 +313,10 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                               <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
                               <div>
                                 <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Date & heure</p>
-                                <p className="font-medium text-gray-900">{ticket.date}</p>
+                                <p className="font-medium text-gray-900">{ticket.dateLabel}</p>
                                 <p className="flex items-center gap-1.5 text-gray-500">
                                   <Clock className="h-3.5 w-3.5" aria-hidden />
-                                  {ticket.time}
+                                  {ticket.timeLabel}
                                 </p>
                               </div>
                             </div>
@@ -330,7 +325,6 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                               <div>
                                 <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Lieu</p>
                                 <p className="font-medium text-gray-900">{ticket.venue}</p>
-                                <p>{ticket.location}</p>
                               </div>
                             </div>
                             
@@ -378,9 +372,11 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                       </div>
                     </article>
                   );
-                })
-              )}
-            </div>
+                    })
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 

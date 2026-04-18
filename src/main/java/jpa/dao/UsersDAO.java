@@ -3,7 +3,6 @@ package jpa.dao;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
-import jpa.model.Commande;
 import jpa.model.Users;
 
 import java.util.List;
@@ -22,4 +21,7 @@ public class UsersDAO extends AbstractJpaDao<Long, Users> {
         cq.select(root);
         return entityManager.createQuery(cq).getResultList();
     }
+
+
 }
+
