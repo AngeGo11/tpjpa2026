@@ -2,6 +2,7 @@ package jpa.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.MediaType;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.ws.rs.*;

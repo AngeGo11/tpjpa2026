@@ -17,6 +17,7 @@ import jpa.model.Users;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 
@@ -133,6 +134,14 @@ public class CommandeResource {
         entity.setAcheteur(acheteur);
         entity.setStatut(Commande.StatutCommande.valueOf(commandeDTO.getStatut().name()));
         CommandeDAO dao = new CommandeDAO();
+        if (entity.getStatut() == Commande.StatutCommande.EN_ATTENTE) {
+            Optional<Commande> existing = dao.findEnAttenteByAcheteurId(commandeDTO.getAcheteurId());
+            if (existing.isPresent()) {
+                return Response.status(Response.Status.CONFLICT)
+                        .entity("Une commande en attente existe déjà pour cet utilisateur.")
+                        .build();
+            }
+        }
         dao.save(entity);
         CommandeDTO dto = new CommandeDTO(entity.getDate(), entity.getMontantTotal(), entity.getAcheteur().getId(),
                 CommandeDTO.StatutCommande.valueOf(entity.getStatut().name()));
@@ -141,5 +150,35 @@ public class CommandeResource {
                 UriBuilder.fromResource(CommandeResource.class)
                         .path(String.valueOf(entity.getId()))
                         .build()).entity(dto).build();
+    }
+
+    @PUT
+    @Path("/{commandeId}")
+    @Consumes("application/json")
+    @Operation(summary = "Mettre à jour une commande", description = "Met à jour le statut et/ou le montant total d'une commande existante")
+    @ApiResponse(responseCode = "200", description = "Commande mise à jour")
+    @ApiResponse(responseCode = "404", description = "Commande introuvable")
+    public Response updateCommande(
+            @PathParam("commandeId") Long commandeId,
+            CommandeDTO commandeDTO) {
+        CommandeDAO dao = new CommandeDAO();
+        Commande entity = dao.findOne(commandeId);
+        if (entity == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        if (commandeDTO.getStatut() != null) {
+            entity.setStatut(Commande.StatutCommande.valueOf(commandeDTO.getStatut().name()));
+        }
+        if (commandeDTO.getMontantTotal() != null) {
+            entity.setMontantTotal(commandeDTO.getMontantTotal());
+        }
+        dao.update(entity);
+        CommandeDTO dto = new CommandeDTO(
+                entity.getDate(),
+                entity.getMontantTotal(),
+                entity.getAcheteur().getId(),
+                CommandeDTO.StatutCommande.valueOf(entity.getStatut().name()));
+        dto.setId(entity.getId());
+        return Response.ok(dto).build();
     }
 }

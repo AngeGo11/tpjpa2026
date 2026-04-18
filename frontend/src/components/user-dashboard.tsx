@@ -519,14 +519,7 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                       className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-700 shadow-sm"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Téléphone</label>
-                    <input
-                      type="tel"
-                      placeholder="Non renseigné"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-festigo focus:outline-none focus:ring-2 focus:ring-festigo/20"
-                    />
-                  </div>
+                  
                 </div>
 
                 <button

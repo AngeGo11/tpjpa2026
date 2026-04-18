@@ -74,6 +74,7 @@ public class CommandeDTO {
 
     public enum StatutCommande {
         ANNULE,
+        EN_ATTENTE,
         REMBOURSE,
         VALIDEE
     }

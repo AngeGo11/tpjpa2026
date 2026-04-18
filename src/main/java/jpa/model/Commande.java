@@ -88,6 +88,7 @@ public class Commande implements Serializable {
 
     public enum StatutCommande{
         ANNULE,
+        EN_ATTENTE,
         REMBOURSE,
         VALIDEE
     }

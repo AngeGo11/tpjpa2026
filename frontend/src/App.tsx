@@ -3,6 +3,7 @@ import { OrganizerDashboard } from './components/organizer-dashboard';
 import { UserDiscovery } from './components/user-discovery';
 import { EventDetails } from './components/event-details';
 import { TicketModal } from './components/ticket-modal';
+import { CommandeRecap } from './components/commande-recap';
 import { LoginFestive } from './components/login-festive';
 import { SignupFestive } from './components/signup-festive';
 import { AdminSettings } from './components/admin-settings';
@@ -24,6 +25,7 @@ export default function App() {
   const [fanSection, setFanSection] = useState<FanAppSection>('discovery');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [recapCommandeId, setRecapCommandeId] = useState<number | null>(null);
 
   const handleEventSelect = (eventId: number) => {
     setSelectedEventId(eventId);
@@ -101,7 +103,24 @@ export default function App() {
         </div>
       )}
 
-      <TicketModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} eventId={selectedEventId} />
+      <TicketModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        eventId={selectedEventId}
+        onReservationSuccess={(commandeId) => {
+          setIsModalOpen(false);
+          setRecapCommandeId(commandeId);
+        }}
+      />
+
+      {recapCommandeId != null && (
+        <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-50">
+          <CommandeRecap
+            commandeId={recapCommandeId}
+            onBack={() => setRecapCommandeId(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
