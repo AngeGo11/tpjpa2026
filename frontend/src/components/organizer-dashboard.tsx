@@ -28,7 +28,7 @@ import { authService } from '../services/authService';
 import { artisteService, Artiste } from '../services/artisteService';
 import { typeBilletService, TypeBilletType } from '../services/typeBilletService';
 
-type OrganizerView = 'dashboard' | 'my-events';
+type OrganizerView = 'dashboard' | 'my-events' | 'edit-event';
 
 const salesData = [
   { month: 'Jan', revenue: 0 },
@@ -57,6 +57,9 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
   const organizerName = currentUser?.nomOrganisation || currentUser?.nom || 'Organisateur';
 
   const [availableArtists, setAvailableArtists] = useState<Artiste[]>([]);
+
+  // État pour savoir quel événement on est en train de modifier
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
 
   const [artists, setArtists] = useState<
     Array<{ id: number; dbId: number | null; name: string; role: string; imageName: string; imagePreview: string; imageFile: File | null }>
@@ -172,6 +175,87 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
     reader.readAsDataURL(file);
   };
 
+  const handleDeleteEvent = async (e: React.MouseEvent, eventId: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible.")) {
+      try {
+        await eventService.deleteEvent(eventId);
+        setEvents(events.filter(ev => ev.id !== eventId));
+        alert("Événement supprimé avec succès.");
+      } catch (error) {
+        console.error("Erreur lors de la suppression", error);
+        alert("Impossible de supprimer cet événement. Il est probablement lié à d'autres données (comme des billets vendus).");
+      }
+    }
+  };
+
+  const handleEditEventClick = async (e: React.MouseEvent, evt: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingEventId(evt.id);
+
+    // Pré-remplir le formulaire avec les données de l'événement
+    const dateObj = evt.date ? new Date(evt.date) : new Date();
+    const dateString = dateObj.toISOString().split('T')[0];
+
+    // Pour simplifier le parsing du lieu qui était formaté comme "Venue, Address, City"
+    const lieuParts = evt.lieu ? evt.lieu.split(', ') : ['', '', ''];
+    const venue = lieuParts[0] || '';
+    const address = lieuParts[1] || '';
+    const city = lieuParts[2] || '';
+
+    setEventFormData({
+      eventName: evt.nom || '',
+      eventDate: dateString,
+      eventTime: evt.heure ? evt.heure.substring(0, 5) : '', // "20:00:00" -> "20:00"
+      venue: venue,
+      address: address,
+      city: city,
+      capacity: evt.nbPlaces ? evt.nbPlaces.toString() : '',
+      description: evt.description || '',
+      category: evt.genreMusical || '',
+      GrandPublicPrice: '', GrandPublicQuantity: '', VVIPPrice: '', VVIPQuantity: '', vipPrice: '', vipQuantity: '',
+      eventImageName: '',
+      eventImagePreview: evt.image || '',
+      eventImageFile: null,
+    });
+
+    // Essayer de récupérer les artistes (Headliner + Guests)
+    const newArtistsList = [];
+    if (evt.artistePrincipalId) {
+      const headliner = availableArtists.find(a => a.id === evt.artistePrincipalId);
+      if (headliner) {
+        newArtistsList.push({
+          id: Date.now(), dbId: headliner.id || null, name: headliner.nomArtiste || headliner.nom || '',
+          role: 'headliner', imageName: '', imagePreview: headliner.photoUrl || '', imageFile: null
+        });
+      }
+    }
+
+    if (evt.inviteIds && evt.inviteIds.length > 0) {
+      evt.inviteIds.forEach((inviteId, idx) => {
+        const guest = availableArtists.find(a => a.id === inviteId);
+        if (guest) {
+           newArtistsList.push({
+             id: Date.now() + idx + 1, dbId: guest.id || null, name: guest.nomArtiste || guest.nom || '',
+             role: 'supporting', imageName: '', imagePreview: guest.photoUrl || '', imageFile: null
+           });
+        }
+      });
+    }
+
+    if (newArtistsList.length === 0) {
+       newArtistsList.push({ id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '', imageFile: null });
+    }
+
+    setArtists(newArtistsList);
+    setSaveMessage(null);
+    setView('edit-event');
+  };
+
+
   const handleSaveEvent = async () => {
     if (!currentUser || !currentUser.id) {
        setSaveMessage({text: "Erreur : Vous devez être connecté pour créer un événement.", type: 'error'});
@@ -183,66 +267,67 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
       return;
     }
 
-    const ticketTierRows: Array<{
-      label: string;
-      type: TypeBilletType;
-      priceStr: string;
-      qtyStr: string;
-    }> = [
-      { label: 'GrandPublic', type: TypeBilletType.GrandPublic, priceStr: eventFormData.GrandPublicPrice, qtyStr: eventFormData.GrandPublicQuantity },
-      { label: 'VVIP', type: TypeBilletType.VIP, priceStr: eventFormData.VVIPPrice, qtyStr: eventFormData.VVIPQuantity },
-      { label: 'VIP', type: TypeBilletType.VVIP, priceStr: eventFormData.vipPrice, qtyStr: eventFormData.vipQuantity },
-    ];
+    let ticketTiersToCreate: any[] = [];
+    const isEditing = view === 'edit-event' && editingEventId !== null;
 
-    for (const row of ticketTierRows) {
-      const hasP = row.priceStr.trim() !== '';
-      const hasQ = row.qtyStr.trim() !== '';
-      if (hasP !== hasQ) {
-        setSaveMessage({
-          text: `Renseignez le prix et la quantité pour les billets ${row.label}, ou laissez les deux champs vides.`,
-          type: 'error',
-        });
-        return;
-      }
-    }
+    if (!isEditing || (eventFormData.GrandPublicPrice || eventFormData.VVIPPrice || eventFormData.vipPrice)) {
+        const ticketTierRows: Array<{
+          label: string;
+          type: TypeBilletType;
+          priceStr: string;
+          qtyStr: string;
+        }> = [
+          { label: 'GrandPublic', type: TypeBilletType.GrandPublic, priceStr: eventFormData.GrandPublicPrice, qtyStr: eventFormData.GrandPublicQuantity },
+          { label: 'VVIP', type: TypeBilletType.VIP, priceStr: eventFormData.VVIPPrice, qtyStr: eventFormData.VVIPQuantity },
+          { label: 'VIP', type: TypeBilletType.VVIP, priceStr: eventFormData.vipPrice, qtyStr: eventFormData.vipQuantity },
+        ];
 
-    const ticketTiersToCreate = ticketTierRows
-      .filter((row) => row.priceStr.trim() !== '' && row.qtyStr.trim() !== '')
-      .map((row) => ({
-        type: row.type,
-        prix: parseFloat(row.priceStr.replace(',', '.')),
-        stock: parseInt(row.qtyStr, 10),
-      }));
+        for (const row of ticketTierRows) {
+          const hasP = row.priceStr.trim() !== '';
+          const hasQ = row.qtyStr.trim() !== '';
+          if (hasP !== hasQ) {
+            setSaveMessage({
+              text: `Renseignez le prix et la quantité pour les billets ${row.label}, ou laissez les deux champs vides.`,
+              type: 'error',
+            });
+            return;
+          }
+        }
 
-    if (ticketTiersToCreate.length === 0) {
-      setSaveMessage({
-        text: 'Ajoutez au moins une catégorie de billet (prix et quantité) : GrandPublic, VVIP ou VIP.',
-        type: 'error',
-      });
-      return;
-    }
+        ticketTiersToCreate = ticketTierRows
+          .filter((row) => row.priceStr.trim() !== '' && row.qtyStr.trim() !== '')
+          .map((row) => ({
+            type: row.type,
+            prix: parseFloat(row.priceStr.replace(',', '.')),
+            stock: parseInt(row.qtyStr, 10),
+          }));
 
-    const invalidTier = ticketTiersToCreate.find(
-      (t) =>
-        !Number.isFinite(t.prix) ||
-        t.prix <= 0 ||
-        !Number.isFinite(t.stock) ||
-        !Number.isInteger(t.stock) ||
-        t.stock <= 0
-    );
-    if (invalidTier) {
-      setSaveMessage({
-        text: 'Chaque tarif renseigné doit avoir un prix et une quantité strictement supérieurs à 0 (quantités en nombres entiers).',
-        type: 'error',
-      });
-      return;
+        if (!isEditing && ticketTiersToCreate.length === 0) {
+          setSaveMessage({
+            text: 'Ajoutez au moins une catégorie de billet (prix et quantité) : GrandPublic, VVIP ou VIP.',
+            type: 'error',
+          });
+          return;
+        }
+
+        const invalidTier = ticketTiersToCreate.find(
+          (t) =>
+            !Number.isFinite(t.prix) || t.prix <= 0 ||
+            !Number.isFinite(t.stock) || !Number.isInteger(t.stock) || t.stock <= 0
+        );
+        if (invalidTier) {
+          setSaveMessage({
+            text: 'Chaque tarif renseigné doit avoir un prix et une quantité strictement supérieurs à 0 (quantités en nombres entiers).',
+            type: 'error',
+          });
+          return;
+        }
     }
 
     setIsSaving(true);
     setSaveMessage(null);
 
     try {
-      // 1. Trouver ou créer l'artiste principal
       const headlinerInput = artists.find(a => a.role === 'headliner');
       let artistePrincipalId: number;
 
@@ -257,23 +342,22 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
       if (foundArtist && foundArtist.id) {
          artistePrincipalId = foundArtist.id;
-         if (headlinerInput.imageFile) {
-            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile);
+         if (headlinerInput.imageFile && artisteService.uploadArtisteImage) {
+            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile).catch(console.error);
          }
       } else {
          const newArtist = await artisteService.createArtiste({
             nomArtiste: headlinerInput.name,
-            nom: headlinerInput.name, // Renseigne les deux pour éviter le bug DTO
+            nom: headlinerInput.name,
             photoUrl: ''
          });
          artistePrincipalId = newArtist.id!;
-         if (headlinerInput.imageFile) {
-            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile);
+         if (headlinerInput.imageFile && artisteService.uploadArtisteImage) {
+            await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile).catch(console.error);
          }
          setAvailableArtists([...availableArtists, newArtist]);
       }
 
-      // 2. Traiter les invités
       const guestInputs = artists.filter(a => a.role === 'supporting' && a.name.trim() !== '');
       const inviteIds: number[] = [];
 
@@ -285,8 +369,8 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
          if (fGuest && fGuest.id) {
             inviteIds.push(fGuest.id);
-            if (guest.imageFile) {
-              await artisteService.uploadArtisteImage(fGuest.id, guest.imageFile);
+            if (guest.imageFile && artisteService.uploadArtisteImage) {
+              await artisteService.uploadArtisteImage(fGuest.id, guest.imageFile).catch(console.error);
             }
          } else {
             const nGuest = await artisteService.createArtiste({
@@ -295,14 +379,13 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                photoUrl: ''
             });
             inviteIds.push(nGuest.id!);
-            if (guest.imageFile) {
-              await artisteService.uploadArtisteImage(nGuest.id!, guest.imageFile);
+            if (guest.imageFile && artisteService.uploadArtisteImage) {
+              await artisteService.uploadArtisteImage(nGuest.id!, guest.imageFile).catch(console.error);
             }
             setAvailableArtists(prev => [...prev, nGuest]);
          }
       }
 
-      // 3. Convertir le genre musical
       let genre = GenreMusical.POP;
       const cat = eventFormData.category.toUpperCase();
       if (Object.values(GenreMusical).includes(cat as any)) {
@@ -322,28 +405,44 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
          genreMusical: genre,
          artistePrincipalId: artistePrincipalId,
          inviteIds: inviteIds,
-         image: ''
+         image: isEditing ? (eventFormData.eventImageFile ? '' : eventFormData.eventImagePreview) : ''
       };
 
-      const createdEvent = await eventService.createEvent(newEventData);
-      if (!createdEvent.id) {
-        throw new Error("Réponse serveur invalide : l'événement créé n'a pas d'identifiant.");
-      }
+      if (isEditing) {
+         await eventService.updateEvent(editingEventId!, newEventData);
+         if (eventFormData.eventImageFile && eventService.uploadEventImage) {
+            await eventService.uploadEventImage(editingEventId!, eventFormData.eventImageFile).catch(console.error);
+         }
+         for (const tier of ticketTiersToCreate) {
+             await typeBilletService.createTypeBillet({
+               eventId: editingEventId!,
+               type: tier.type,
+               prix: tier.prix,
+               stock: tier.stock,
+             }).catch(console.error);
+         }
+         setSaveMessage({text: "L'événement a été mis à jour avec succès !", type: 'success'});
 
-      if (eventFormData.eventImageFile) {
-        await eventService.uploadEventImage(createdEvent.id, eventFormData.eventImageFile);
-      }
+      } else {
+         const createdEvent = await eventService.createEvent(newEventData);
+         if (!createdEvent.id) {
+           throw new Error("Réponse serveur invalide : l'événement créé n'a pas d'identifiant.");
+         }
 
-      for (const tier of ticketTiersToCreate) {
-        await typeBilletService.createTypeBillet({
-          eventId: createdEvent.id,
-          type: tier.type,
-          prix: tier.prix,
-          stock: tier.stock,
-        });
-      }
+         if (eventFormData.eventImageFile && eventService.uploadEventImage) {
+           await eventService.uploadEventImage(createdEvent.id, eventFormData.eventImageFile).catch(console.error);
+         }
 
-      setSaveMessage({text: "L'événement et les tarifs ont été enregistrés avec succès !", type: 'success'});
+         for (const tier of ticketTiersToCreate) {
+           await typeBilletService.createTypeBillet({
+             eventId: createdEvent.id,
+             type: tier.type,
+             prix: tier.prix,
+             stock: tier.stock,
+           });
+         }
+         setSaveMessage({text: "L'événement et les tarifs ont été enregistrés avec succès !", type: 'success'});
+      }
 
       setEventFormData({
         eventName: '', eventDate: '', eventTime: '', venue: '', address: '', city: '',
@@ -353,6 +452,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
         eventImageName: '', eventImagePreview: '', eventImageFile: null,
       });
       setArtists([{ id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '', imageFile: null }]);
+      setEditingEventId(null);
 
       fetchMyEvents();
       setTimeout(() => setView('dashboard'), 1500);
@@ -360,7 +460,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
     } catch (err: any) {
       console.error("Détail de l'erreur lors de la sauvegarde:", err);
       setSaveMessage({
-        text: `Erreur lors de la création: ${err.message || 'Problème serveur'}`,
+        text: `Erreur lors de la ${isEditing ? 'mise à jour' : 'création'}: ${err.message || 'Problème serveur'}`,
         type: 'error'
       });
     } finally {
@@ -377,6 +477,8 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
   const totalCapacity = events.reduce((sum, e) => sum + (e.nbPlaces || 0), 0);
 
+  const isFormView = view === 'my-events' || view === 'edit-event';
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans antialiased">
       <aside className="flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white">
@@ -388,11 +490,20 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
         </div>
 
         <nav className="flex-1 space-y-0.5 p-3">
-          <button type="button" onClick={() => setView('dashboard')} className={navBtn(view === 'dashboard')}>
+          <button type="button" onClick={() => { setView('dashboard'); setEditingEventId(null); }} className={navBtn(view === 'dashboard')}>
             <LayoutDashboard className="h-5 w-5 shrink-0 opacity-80" />
             <span>Dashboard</span>
           </button>
-          <button type="button" onClick={() => setView('my-events')} className={navBtn(view === 'my-events')}>
+          <button type="button" onClick={() => {
+              setEventFormData({
+                  eventName: '', eventDate: '', eventTime: '', venue: '', address: '', city: '',
+                  capacity: '', description: '', category: '', GrandPublicPrice: '', GrandPublicQuantity: '',
+                  VVIPPrice: '', VVIPQuantity: '', vipPrice: '', vipQuantity: '', eventImageName: '', eventImagePreview: '', eventImageFile: null,
+              });
+              setArtists([{ id: 1, dbId: null, name: '', role: 'headliner', imageName: '', imagePreview: '', imageFile: null }]);
+              setEditingEventId(null);
+              setView('my-events');
+          }} className={navBtn(view === 'my-events')}>
             <Ticket className="h-5 w-5 shrink-0 opacity-80" />
             <span>Créer un événement</span>
           </button>
@@ -415,17 +526,20 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 md:px-8">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-              {view === 'dashboard' ? 'Vue d’ensemble' : 'Événements'}
+              {view === 'dashboard' ? 'Vue d’ensemble' : (view === 'edit-event' ? 'Modification' : 'Événements')}
             </p>
             <h2 className="text-lg font-semibold text-gray-900">
-              {view === 'dashboard' ? 'Tableau de bord' : 'Créer un événement'}
+              {view === 'dashboard' ? 'Tableau de bord' : (view === 'edit-event' ? 'Modifier l\'événement' : 'Créer un événement')}
             </h2>
           </div>
           <div className="flex items-center gap-3">
             {view === 'dashboard' && (
               <button
                 type="button"
-                onClick={() => setView('my-events')}
+                onClick={() => {
+                  setEditingEventId(null);
+                  setView('my-events');
+                }}
                 className="inline-flex items-center gap-2 rounded-lg bg-festigo px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-festigo-hover hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
               >
                 <Plus className="h-4 w-4" />
@@ -529,11 +643,19 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                           </div>
 
                           <div className="col-span-2 flex justify-end gap-1">
+                             <button
+                              type="button"
+                              onClick={(e) => handleEditEventClick(e, event)}
+                              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-white hover:text-blue-600 hover:shadow-sm"
+                              title="Modifier l'événement"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
                             <button
                               type="button"
+                              onClick={(e) => handleDeleteEvent(e, event.id)}
                               className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-white hover:text-red-600 hover:shadow-sm"
-                              title="Fonctionnalité en cours de développement"
-                              onClick={() => alert(`Suppression de l'événement ID: ${event.id} non implémentée.`)}
+                              title="Supprimer l'événement"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -547,11 +669,15 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
             </div>
           )}
 
-          {view === 'my-events' && (
+          {isFormView && (
             <div className="p-6 md:p-8">
               <div className="mb-8">
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">Créer un nouvel événement</h2>
-                <p className="mt-1 text-sm text-gray-500">Planifiez et publiez votre prochain concert</p>
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                  {view === 'edit-event' ? "Modifier l'événement" : "Créer un nouvel événement"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {view === 'edit-event' ? "Mettez à jour les informations de votre concert" : "Planifiez et publiez votre prochain concert"}
+                </p>
               </div>
 
               {saveMessage && (
@@ -636,7 +762,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                         <div className="flex h-24 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-festigo/20 bg-gradient-to-br from-festigo/10 to-violet-100">
                           {eventFormData.eventImagePreview ? (
                             <img
-                              src={eventFormData.eventImagePreview}
+                              src={eventFormData.eventImagePreview.startsWith('http') ? eventFormData.eventImagePreview : 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1600'}
                               alt={`Affiche de ${eventFormData.eventName || 'événement'}`}
                               className="h-full w-full object-cover"
                             />
@@ -650,7 +776,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                             className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-festigo px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover"
                           >
                             <ImageIcon className="h-3.5 w-3.5" />
-                            {eventFormData.eventImageName ? "Changer l'image" : "Uploader une image"}
+                            {eventFormData.eventImageName || eventFormData.eventImagePreview ? "Changer l'image" : "Uploader une image"}
                           </label>
                           <p className="truncate text-xs text-gray-500">
                             {eventFormData.eventImageName || 'Format recommandé: paysage (ex: 1600x900)'}
@@ -715,41 +841,6 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                                   className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
                                   aria-hidden
                                 />
-                              </div>
-                            </div>
-                            <div className="sm:col-span-2">
-                              <label className="mb-2 block text-xs font-medium text-gray-500">Image artiste</label>
-                              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-white p-3">
-                                <input
-                                  id={`artist-image-${artist.id}`}
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handleArtistImageUpload(artist.id, e.target.files?.[0] ?? null)}
-                                />
-                                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-festigo/15 bg-gradient-to-br from-festigo/10 to-violet-100">
-                                  {artist.imagePreview ? (
-                                    <img
-                                      src={artist.imagePreview}
-                                      alt={`Photo de ${artist.name || 'artiste'}`}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  ) : (
-                                    <ImageIcon className="h-8 w-8 text-festigo/60" />
-                                  )}
-                                </div>
-                                <div className="min-w-0 space-y-2">
-                                  <label
-                                    htmlFor={`artist-image-${artist.id}`}
-                                    className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-festigo px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover"
-                                  >
-                                    <ImageIcon className="h-3.5 w-3.5" />
-                                    {artist.imageName ? 'Changer la photo' : 'Uploader une photo'}
-                                  </label>
-                                  <p className="truncate text-xs text-gray-500">
-                                    {artist.imageName || 'Format recommandé: carré (ex: 600x600)'}
-                                  </p>
-                                </div>
                               </div>
                             </div>
                           </div>
@@ -862,7 +953,9 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">Tarifs</h3>
-                      <p className="text-sm text-gray-500">Prix et quantites par categorie</p>
+                      <p className="text-sm text-gray-500">
+                        {view === 'edit-event' ? "Ajouter de nouveaux tarifs (les tarifs existants ne sont pas modifiés ici)" : "Prix et quantites par categorie"}
+                      </p>
                     </div>
                   </div>
 
@@ -968,8 +1061,18 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                     }`}
                   >
                     <Save className="h-5 w-5" />
-                    {isSaving ? 'Creation en cours...' : "Enregistrer & publier l'evenement"}
+                    {isSaving ? 'Sauvegarde en cours...' : (view === 'edit-event' ? "Mettre à jour l'événement" : "Enregistrer & publier l'événement")}
                   </button>
+                  {view === 'edit-event' && (
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => { setView('dashboard'); setEditingEventId(null); }}
+                      className="rounded-xl border border-gray-200 bg-white py-4 px-6 text-base font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                    >
+                      Annuler
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
