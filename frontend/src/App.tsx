@@ -22,7 +22,15 @@ type View = 'dashboard' | 'event-details' | 'login' | 'signup' | 'admin-settings
 const accountBadgeCounts = getUserAccountMenuBadgeCounts();
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<View>('fan');
+  // L'état initial est calculé en fonction de l'utilisateur stocké dans le localStorage
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const user = authService.getCurrentUser();
+    if (user && user.role === 'Organizer') {
+      return 'dashboard';
+    }
+    return 'fan'; // Par défaut, vue fan (découverte)
+  });
+
   const [fanSection, setFanSection] = useState<FanAppSection>('discovery');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
@@ -39,9 +47,12 @@ export default function App() {
       setUpcomingTicketCount(0);
       return;
     }
-    countUserUpcomingTickets(u.id)
-      .then(setUpcomingTicketCount)
-      .catch(() => setUpcomingTicketCount(0));
+    // Appel sécurisé si countUserUpcomingTickets est implémenté
+    if (typeof countUserUpcomingTickets === 'function') {
+        countUserUpcomingTickets(u.id)
+          .then(setUpcomingTicketCount)
+          .catch(() => setUpcomingTicketCount(0));
+    }
   }, [currentView, fanSection, recapCommandeId]);
 
   const handleEventSelect = (eventId: number) => {
@@ -85,7 +96,7 @@ export default function App() {
         <OrganizerDashboard
           onLogout={() => {
             authService.logout();
-            setCurrentView('login');
+            setCurrentView('login'); // Rediriger vers login après déconnexion
           }}
         />
       )}
@@ -103,7 +114,7 @@ export default function App() {
             onLogin={() => setCurrentView('login')}
             onLogout={() => {
               authService.logout();
-              setCurrentView('login');
+              setCurrentView('login'); // Rediriger vers login après déconnexion
             }}
             upcomingTicketCount={upcomingTicketCount}
             favoritesCount={accountBadgeCounts.favorites}
