@@ -274,6 +274,74 @@ public class EventsResource {
                         .build()).entity(dto).build();
     }
 
+    @PUT
+    @Path("/{eventId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Mettre à jour un évènement", description = "Met à jour les informations d'un évènement existant")
+    @ApiResponse(responseCode = "200", description = "Évènement mis à jour")
+    @ApiResponse(responseCode = "404", description = "Évènement introuvable")
+    public Response updateEvent(@PathParam("eventId") Long eventId, EventsDTO eventDto) {
+        EventsDAO dao = new EventsDAO();
+        Events entity = dao.findOne(eventId);
+        if (entity == null) {
+            return Response.status(Response.Status.NOT_FOUND).entity("Évènement introuvable").build();
+        }
+
+        OrganizerDAO organizerDAO = new OrganizerDAO();
+        ArtisteDAO artisteDAO = new ArtisteDAO();
+
+        Organizer organizer = organizerDAO.findOne(eventDto.getOrganizerId());
+        Artiste artistePrincipal = artisteDAO.findOne(eventDto.getArtistePrincipalId());
+        if (organizer == null || artistePrincipal == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Organisateur ou artiste principal introuvable pour les IDs fournis")
+                    .build();
+        }
+
+        List<Artiste> invites = new ArrayList<>();
+        if (eventDto.getInviteIds() != null) {
+            for (Long inviteId : eventDto.getInviteIds()) {
+                Artiste a = artisteDAO.findOne(inviteId);
+                if (a != null) {
+                    invites.add(a);
+                }
+            }
+        }
+
+        entity.setNom(eventDto.getNom());
+        entity.setImage(eventDto.getImage());
+        entity.setLieu(eventDto.getLieu());
+        entity.setDate(eventDto.getDate());
+        entity.setHeure(eventDto.getHeure());
+        entity.setDescription(eventDto.getDescription());
+        entity.setNbPlaces(eventDto.getNbPlaces());
+        entity.setOrganizer(organizer);
+        entity.setGenreMusical(Events.GenreMusical.valueOf(eventDto.getGenreMusical().name()));
+        entity.setArtistePrincipal(artistePrincipal);
+        entity.setInvites(invites);
+
+        dao.update(entity);
+
+        List<Long> inviteIds = invites.stream().map(Artiste::getId).collect(Collectors.toList());
+        EventsDTO dto = new EventsDTO(
+                entity.getNom(),
+                entity.getImage(),
+                entity.getLieu(),
+                entity.getDate(),
+                entity.getHeure(),
+                entity.getDescription(),
+                entity.getNbPlaces(),
+                entity.getOrganizer().getId(),
+                EventsDTO.GenreMusical.valueOf(entity.getGenreMusical().name()),
+                entity.getArtistePrincipal().getId(),
+                inviteIds);
+        dto.setId(entity.getId());
+
+        return Response.ok(dto).build();
+    }
+
+
     @POST
     @Path("/{eventId}/image")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
