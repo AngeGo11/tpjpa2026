@@ -26,6 +26,28 @@ export interface BilletCommandeLigne {
   typeBilletId: number;
 }
 
+/** Tolère tableau, objet unique ou variantes de clés JSON côté serveur. */
+export function normalizeCommandeBilletsPayload(data: unknown): BilletCommandeLigne[] {
+  const raw = Array.isArray(data) ? data : data != null && typeof data === 'object' ? [data] : [];
+  const out: BilletCommandeLigne[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const typeBilletId = Number(row.typeBilletId ?? row.type_billet_id);
+    if (!Number.isFinite(typeBilletId) || typeBilletId <= 0) continue;
+    const id = Number(row.id ?? row.Id);
+    const cid = Number(row.commandeId ?? row.commande_id ?? 0);
+    const codeBarre = String(row.codeBarre ?? row.code_barre ?? '');
+    out.push({
+      id: Number.isFinite(id) ? id : 0,
+      codeBarre,
+      commandeId: Number.isFinite(cid) ? cid : 0,
+      typeBilletId,
+    });
+  }
+  return out;
+}
+
 export const commandeService = {
   /**
    * Commande EN_ATTENTE en cours pour l'utilisateur (dérivée de GET /api/commandes).
@@ -66,7 +88,8 @@ export const commandeService = {
    * Billets associés à une commande (GET /api/commandes/{id}/billets).
    */
   getBilletsByCommandeId: async (commandeId: number): Promise<BilletCommandeLigne[]> => {
-    return fetchApi<BilletCommandeLigne[]>(`/commandes/${commandeId}/billets`);
+    const raw = await fetchApi<unknown>(`/commandes/${commandeId}/billets`);
+    return normalizeCommandeBilletsPayload(raw);
   },
 
   /**

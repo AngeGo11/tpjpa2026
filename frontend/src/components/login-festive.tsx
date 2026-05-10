@@ -1,6 +1,7 @@
 import React, { useState, type FormEvent } from 'react';
 import { Mail, Lock, ArrowRight, Building2, Quote } from 'lucide-react';
 import { authService } from '../services/authService';
+import { FestigoLogo } from './festigo-logo';
 import { Role } from '../services/userService';
 
 const affiche1Url = new URL('../../images/login-branding.jpg', import.meta.url).href;
@@ -74,20 +75,16 @@ export function LoginFestive({ onNavigateToSignup, onLoginAsUser, onLoginAsOrgan
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans antialiased lg:flex-row">
       {/* Mobile: compact brand banner */}
       <div className="bg-[#125484] px-6 py-5 text-white lg:hidden">
-        <p className="text-lg font-bold tracking-tight">
-          FestiGo<span className="text-white/90">.</span>
-        </p>
-        <p className="mt-0.5 text-sm text-white/80">Gérez vos événements sans effort.</p>
+        <FestigoLogo variant="onDark" className="h-9 max-w-[52px]" />
+        <p className="mt-2 text-sm text-white/80">Gérez vos événements sans effort.</p>
       </div>
 
       {/* Form column */}
       <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:w-[44%] lg:max-w-none lg:px-12 xl:px-16">
         <div className="festigo-auth-fade-in mx-auto w-full max-w-md">
           <div className="mb-8 lg:mb-10">
-            <p className="text-lg font-bold tracking-tight text-slate-900 lg:text-xl">
-              FestiGo<span className="text-festigo">.</span>
-            </p>
-            <p className="mt-1 text-sm text-slate-500">Ton passeport pour les concerts</p>
+            <FestigoLogo className="h-10 max-w-[64px] lg:h-11 lg:max-w-[72px]" />
+            <p className="mt-2 text-sm text-slate-500">Ton passeport pour les concerts</p>
           </div>
 
           <div className="mb-8">
@@ -212,10 +209,12 @@ export function LoginFestive({ onNavigateToSignup, onLoginAsUser, onLoginAsOrgan
         <div className="absolute inset-0 bg-gradient-to-t from-[#081b33]/85 via-[#081b33]/35 to-transparent" />
 
         <div className="relative">
-          <p className="text-2xl font-bold tracking-tight xl:text-3xl">
-            FestiGo<span className="text-white/90">.</span>
-          </p>
-          <p className="mt-3 max-w-md text-lg leading-relaxed text-white/80">
+          <FestigoLogo
+            variant="onDark"
+            className="h-12 max-w-[88px] xl:h-14 xl:max-w-[96px]"
+            wordmarkClassName="text-2xl font-bold xl:text-3xl"
+          />
+          <p className="mt-4 max-w-md text-lg leading-relaxed text-white/80">
             Gérez vos événements sans effort.
           </p>
         </div>

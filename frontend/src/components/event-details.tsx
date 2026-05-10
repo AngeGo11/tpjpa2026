@@ -4,6 +4,7 @@ import { eventService, Event } from '../services/eventService';
 import { artisteService, Artiste } from '../services/artisteService';
 import { authService } from '../services/authService';
 import * as favoriteService from '../services/favoriteService';
+import { FestigoLogo } from './festigo-logo';
 
 interface EventDetailsProps {
   eventId: number; // Nouveau: on passe l'ID de l'événement à afficher
@@ -171,9 +172,7 @@ export function EventDetails({ eventId, onBookTickets, onBack, onFavoritesChange
       <nav className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
         <div className="container mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
           <div className="flex items-center gap-4 md:gap-8">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              FestiGo<span className="text-festigo">.</span>
-            </h1>
+            <FestigoLogo className="h-8 max-w-[48px] sm:h-9 sm:max-w-[52px]" />
             <button
               type="button"
               onClick={onBack}

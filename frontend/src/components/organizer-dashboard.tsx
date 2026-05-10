@@ -30,6 +30,7 @@ import { typeBilletService, TypeBilletType } from '../services/typeBilletService
 import { billetService } from '../services/billetService';
 import { commandeService, StatutCommande } from '../services/commandeService';
 import { parseEventStartMs } from '../services/userTicketsService';
+import { FestigoLogo } from './festigo-logo';
 
 type OrganizerView = 'dashboard' | 'my-events' | 'edit-event';
 
@@ -580,10 +581,8 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
     <div className="flex h-screen bg-slate-50 font-sans antialiased">
       <aside className="flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white">
         <div className="border-b border-gray-200 px-5 py-5">
-          <h1 className="text-lg font-bold tracking-tight text-gray-900">
-            FestiGo<span className="text-festigo">.</span>
-          </h1>
-          <p className="mt-0.5 text-xs font-medium text-gray-500">Gestion des événements</p>
+          <FestigoLogo className="h-9 max-w-[52px]" /> 
+          <p className="mt-2 text-xs font-medium text-gray-500">Gestion des événements</p>
         </div>
 
         <nav className="flex-1 space-y-0.5 p-3">
@@ -629,24 +628,10 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
               {view === 'dashboard' ? 'Tableau de bord' : (view === 'edit-event' ? 'Modifier l\'événement' : 'Créer un événement')}
             </h2>
           </div>
-          <div className="flex items-center gap-3">
-            {view === 'dashboard' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingEventId(null);
-                  setView('my-events');
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-festigo px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-festigo-hover hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
-              >
-                <Plus className="h-4 w-4" />
-                Nouvel événement
-              </button>
-            )}
+           
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-festigo text-xs font-semibold text-white uppercase">
                {organizerName.substring(0, 2)}
             </div>
-          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">

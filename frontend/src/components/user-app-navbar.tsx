@@ -11,6 +11,7 @@ import {
   Compass,
 } from 'lucide-react';
 import type { FanAppSection } from './user-dashboard';
+import { FestigoLogo } from './festigo-logo';
 import { authService } from '../services/authService';
 import { getUserDisplayName, getUserFirstName, getUserInitials, type User } from '../services/userService';
 
@@ -200,10 +201,8 @@ export function UserAppNavbar({
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 flex-1 items-baseline gap-1.5 sm:gap-2">
-          <span className="shrink-0 text-sm font-bold text-gray-900 sm:text-base">
-            FestiGo<span className="text-festigo">.</span>
-          </span>
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+          <FestigoLogo className="h-7 max-w-[44px] sm:h-8 sm:max-w-[48px]" />
           <span className="shrink-0 text-gray-300" aria-hidden>
             /
           </span>

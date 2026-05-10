@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, Hash, Package, User } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Calendar, Download, FileText, Hash, Package, Printer, User } from 'lucide-react';
 import { commandeService, StatutCommande, type Commande, type BilletCommandeLigne } from '../services/commandeService';
 import { typeBilletService, TypeBilletType, type TypeBillet } from '../services/typeBilletService';
 import { eventService, type Event } from '../services/eventService';
 import { authService } from '../services/authService';
 import { fetchApi } from '../services/api';
+import {
+  PurchaseReceiptCard,
+  genreLabel,
+  mapLibelleToReceiptCategory,
+  type PurchaseReceiptItem,
+} from './purchase-receipt';
+import { parseEventStartMs } from '../services/userTicketsService';
 
 const PENDING_LIGNES_KEY = (commandeId: number) => `commande_${commandeId}_lignes_pendues`;
 
@@ -78,6 +85,114 @@ interface LigneRecap {
   sousTotal: number;
 }
 
+/**
+ * Agrège les billets par type. Les clés utilisent l’id demandé à l’API (`tid`), pas seulement `t.id`
+ * (souvent absent dans la réponse JSON), sinon le tableau reste vide.
+ */
+async function recapLinesFromBilletsApi(
+  billets: BilletCommandeLigne[]
+): Promise<{ lignes: LigneRecap[]; types: TypeBillet[] }> {
+  const uniqueTypeIds = [
+    ...new Set(billets.map((b) => b.typeBilletId).filter((id) => Number.isFinite(id) && id > 0)),
+  ];
+  const types: TypeBillet[] = [];
+  const byTypeId = new Map<number, TypeBillet>();
+  for (const tid of uniqueTypeIds) {
+    try {
+      const t = await typeBilletService.getTypeBilletById(tid);
+      types.push(t);
+      byTypeId.set(tid, t);
+    } catch {
+      /* type introuvable */
+    }
+  }
+  const counts = new Map<number, number>();
+  for (const b of billets) {
+    if (!Number.isFinite(b.typeBilletId) || b.typeBilletId <= 0) continue;
+    counts.set(b.typeBilletId, (counts.get(b.typeBilletId) ?? 0) + 1);
+  }
+  const lignes: LigneRecap[] = [];
+  for (const [typeBilletId, qty] of counts) {
+    const tb = byTypeId.get(typeBilletId);
+    if (!tb) continue;
+    const prix = typeof tb.prix === 'number' ? tb.prix : Number(tb.prix);
+    const pu = Number.isFinite(prix) ? prix : 0;
+    lignes.push({
+      typeBilletId,
+      libelle: labelTypeBillet(tb.type),
+      quantite: qty,
+      prixUnitaire: pu,
+      sousTotal: pu * qty,
+    });
+  }
+  return { lignes, types };
+}
+
+/** Billets API puis repli sessionStorage (même logique que le chargement initial). */
+async function fetchRecapWithFallback(
+  commandeId: number,
+  statut: StatutCommande
+): Promise<{ recap: LigneRecap[]; typesForEvent: TypeBillet[] }> {
+  let billets: BilletCommandeLigne[] = [];
+  try {
+    billets = await commandeService.getBilletsByCommandeId(commandeId);
+  } catch {
+    billets = [];
+  }
+
+  let { lignes: recap, types: typesForEvent } = await recapLinesFromBilletsApi(billets);
+
+  if (
+    recap.length === 0 &&
+    (statut === StatutCommande.EN_ATTENTE || statut === StatutCommande.VALIDEE)
+  ) {
+    try {
+      const raw = sessionStorage.getItem(PENDING_LIGNES_KEY(commandeId));
+      if (raw) {
+        const pendues: LignePendue[] = JSON.parse(raw) as LignePendue[];
+        const uniquePendingIds = [...new Set(pendues.map((p) => p.typeBilletId))];
+        const typesPending: TypeBillet[] = [];
+        const byPending = new Map<number, TypeBillet>();
+        for (const tid of uniquePendingIds) {
+          try {
+            const t = await typeBilletService.getTypeBilletById(tid);
+            typesPending.push(t);
+            byPending.set(tid, t);
+          } catch {
+            /* ignore */
+          }
+        }
+        const countsP = new Map<number, number>();
+        for (const p of pendues) {
+          countsP.set(p.typeBilletId, (countsP.get(p.typeBilletId) ?? 0) + p.quantite);
+        }
+        const recapPending: LigneRecap[] = [];
+        for (const [typeBilletId, qty] of countsP) {
+          const tb = byPending.get(typeBilletId);
+          if (!tb) continue;
+          const prix = typeof tb.prix === 'number' ? tb.prix : Number(tb.prix);
+          const pu = Number.isFinite(prix) ? prix : 0;
+          recapPending.push({
+            typeBilletId,
+            libelle: labelTypeBillet(tb.type),
+            quantite: qty,
+            prixUnitaire: pu,
+            sousTotal: pu * qty,
+          });
+        }
+        if (recapPending.length > 0) {
+          recap = recapPending;
+          typesForEvent = typesPending;
+        }
+      }
+    } catch {
+      /* sessionStorage / JSON */
+    }
+  }
+
+  return { recap, typesForEvent };
+}
+
 export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
   const [commande, setCommande] = useState<Commande | null>(null);
   const [eventInfo, setEventInfo] = useState<Event | null>(null);
@@ -86,6 +201,99 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [validateError, setValidateError] = useState<string | null>(null);
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const acheteur = authService.getCurrentUser();
+
+  const receiptItems = useMemo((): PurchaseReceiptItem[] => {
+    return lignes.map((l) => ({
+      description: l.libelle,
+      category: mapLibelleToReceiptCategory(l.libelle),
+      qty: l.quantite,
+      unitPrice: l.prixUnitaire,
+    }));
+  }, [lignes]);
+
+  const subtotalFromLines = useMemo(
+    () => lignes.reduce((acc, l) => acc + l.sousTotal, 0),
+    [lignes]
+  );
+
+  const serviceFeeAmount = useMemo(() => {
+    if (!commande) return 0;
+    const diff = commande.montantTotal - subtotalFromLines;
+    return diff > 0.01 ? diff : 0;
+  }, [commande, subtotalFromLines]);
+
+  const receiptCommonProps = useMemo(() => {
+    if (!commande) return null;
+    let purchaseDate = '';
+    let purchaseTime = '';
+    try {
+      const d = new Date(commande.date);
+      purchaseDate = d.toLocaleDateString('fr-FR', { dateStyle: 'long' });
+      purchaseTime = d.toLocaleTimeString('fr-FR', { timeStyle: 'short' });
+    } catch {
+      purchaseDate = commande.date;
+    }
+    const orderId = `FGO-2026-${String(commande.id).padStart(6, '0')}`;
+    let eventDate = '—';
+    let eventTime = '—';
+    let eventTitle = 'Événement';
+    let venue = '—';
+    let eventSubtitle: string | undefined;
+    if (eventInfo) {
+      eventTitle = eventInfo.nom;
+      venue = eventInfo.lieu;
+      const gl = genreLabel(eventInfo.genreMusical);
+      if (gl) eventSubtitle = `Genre : ${gl}`;
+      const ms = parseEventStartMs(eventInfo);
+      const dt = new Date(ms);
+      if (!Number.isNaN(dt.getTime())) {
+        eventDate = dt.toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+        eventTime = `À partir de ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+    }
+    return {
+      orderId,
+      internalReference: `#${commande.id}`,
+      purchaseDate,
+      purchaseTime,
+      paymentMethod: 'Paiement sécurisé en ligne',
+      buyerName: acheteur?.nom,
+      buyerEmail: acheteur?.email,
+      eventTitle,
+      eventSubtitle,
+      venue,
+      eventDate,
+      eventTime,
+      items: receiptItems,
+      subtotal: subtotalFromLines,
+      serviceFee: serviceFeeAmount,
+      total: commande.montantTotal,
+    };
+  }, [
+    commande,
+    eventInfo,
+    receiptItems,
+    subtotalFromLines,
+    serviceFeeAmount,
+    acheteur?.nom,
+    acheteur?.email,
+  ]);
+
+  useEffect(() => {
+    if (!receiptDialogOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setReceiptDialogOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [receiptDialogOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,92 +306,8 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
         if (cancelled) return;
         setCommande(c);
 
-        let billets: BilletCommandeLigne[] = [];
-        try {
-          billets = await commandeService.getBilletsByCommandeId(commandeId);
-        } catch {
-          billets = [];
-        }
+        const { recap, typesForEvent } = await fetchRecapWithFallback(commandeId, c.statut);
         if (cancelled) return;
-
-        const uniqueTypeIds = [...new Set(billets.map((b) => b.typeBilletId))];
-        const types: TypeBillet[] = [];
-        for (const tid of uniqueTypeIds) {
-          try {
-            const t = await typeBilletService.getTypeBilletById(tid);
-            types.push(t);
-          } catch {
-            /* ignore ligne orpheline */
-          }
-        }
-        if (cancelled) return;
-
-        const byTypeId = new Map<number, TypeBillet>();
-        for (const t of types) {
-          if (t.id != null) byTypeId.set(t.id, t);
-        }
-
-        const counts = new Map<number, number>();
-        for (const b of billets) {
-          counts.set(b.typeBilletId, (counts.get(b.typeBilletId) ?? 0) + 1);
-        }
-
-        let recap: LigneRecap[] = [];
-        for (const [typeBilletId, qty] of counts) {
-          const tb = byTypeId.get(typeBilletId);
-          if (!tb) continue;
-          recap.push({
-            typeBilletId,
-            libelle: labelTypeBillet(tb.type),
-            quantite: qty,
-            prixUnitaire: tb.prix,
-            sousTotal: tb.prix * qty,
-          });
-        }
-
-        let typesForEvent: TypeBillet[] = types;
-
-        if (recap.length === 0 && c.statut === StatutCommande.EN_ATTENTE) {
-          try {
-            const raw = sessionStorage.getItem(PENDING_LIGNES_KEY(commandeId));
-            if (raw) {
-              const pendues: LignePendue[] = JSON.parse(raw) as LignePendue[];
-              const uniquePendingIds = [...new Set(pendues.map((p) => p.typeBilletId))];
-              const typesPending: TypeBillet[] = [];
-              for (const tid of uniquePendingIds) {
-                try {
-                  const t = await typeBilletService.getTypeBilletById(tid);
-                  typesPending.push(t);
-                } catch {
-                  /* ignore */
-                }
-              }
-              if (cancelled) return;
-              const byPending = new Map<number, TypeBillet>();
-              for (const t of typesPending) {
-                if (t.id != null) byPending.set(t.id, t);
-              }
-              const countsP = new Map<number, number>();
-              for (const p of pendues) {
-                countsP.set(p.typeBilletId, (countsP.get(p.typeBilletId) ?? 0) + p.quantite);
-              }
-              for (const [typeBilletId, qty] of countsP) {
-                const tb = byPending.get(typeBilletId);
-                if (!tb) continue;
-                recap.push({
-                  typeBilletId,
-                  libelle: labelTypeBillet(tb.type),
-                  quantite: qty,
-                  prixUnitaire: tb.prix,
-                  sousTotal: tb.prix * qty,
-                });
-              }
-              typesForEvent = typesPending;
-            }
-          } catch {
-            /* sessionStorage / JSON */
-          }
-        }
 
         setLignes(recap);
 
@@ -212,7 +336,31 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
     };
   }, [commandeId]);
 
-  const acheteur = authService.getCurrentUser();
+  /** Commande validée : si les lignes sont encore vides (timing API / premier rendu), on recharge une fois pour le reçu. */
+  useEffect(() => {
+    if (isLoading || !commande || commande.statut !== StatutCommande.VALIDEE) return;
+    if (lignes.length > 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      const { recap, typesForEvent } = await fetchRecapWithFallback(commandeId, StatutCommande.VALIDEE);
+      if (cancelled || recap.length === 0) return;
+      setLignes(recap);
+      const firstEventId = typesForEvent.find((t) => t.eventId != null)?.eventId;
+      if (firstEventId != null) {
+        try {
+          const ev = await eventService.getEventById(firstEventId);
+          if (!cancelled) setEventInfo(ev);
+        } catch {
+          if (!cancelled) setEventInfo(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, commande?.statut, commande?.id, commandeId, lignes.length]);
 
   const formatDate = (raw: string) => {
     try {
@@ -256,44 +404,16 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
       }
       const updated = await commandeService.updateCommande(commandeId, { statut: StatutCommande.VALIDEE });
       setCommande(updated);
+      const { recap, typesForEvent } = await fetchRecapWithFallback(commandeId, StatutCommande.VALIDEE);
+      setLignes(recap);
       try {
-        sessionStorage.removeItem(PENDING_LIGNES_KEY(commandeId));
+        if (recap.length > 0) {
+          sessionStorage.removeItem(PENDING_LIGNES_KEY(commandeId));
+        }
       } catch {
         /* */
       }
-      billetsExisting = await commandeService.getBilletsByCommandeId(commandeId);
-      const uniqueTypeIds = [...new Set(billetsExisting.map((b) => b.typeBilletId))];
-      const types: TypeBillet[] = [];
-      for (const tid of uniqueTypeIds) {
-        try {
-          const t = await typeBilletService.getTypeBilletById(tid);
-          types.push(t);
-        } catch {
-          /* */
-        }
-      }
-      const byTypeId = new Map<number, TypeBillet>();
-      for (const t of types) {
-        if (t.id != null) byTypeId.set(t.id, t);
-      }
-      const counts = new Map<number, number>();
-      for (const b of billetsExisting) {
-        counts.set(b.typeBilletId, (counts.get(b.typeBilletId) ?? 0) + 1);
-      }
-      const recap: LigneRecap[] = [];
-      for (const [typeBilletId, qty] of counts) {
-        const tb = byTypeId.get(typeBilletId);
-        if (!tb) continue;
-        recap.push({
-          typeBilletId,
-          libelle: labelTypeBillet(tb.type),
-          quantite: qty,
-          prixUnitaire: tb.prix,
-          sousTotal: tb.prix * qty,
-        });
-      }
-      setLignes(recap);
-      const firstEventId = types.find((t) => t.eventId != null)?.eventId;
+      const firstEventId = typesForEvent.find((t) => t.eventId != null)?.eventId;
       if (firstEventId != null) {
         try {
           const ev = await eventService.getEventById(firstEventId);
@@ -391,6 +511,88 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
           </div>
         )}
 
+        {commande.statut === StatutCommande.VALIDEE && receiptCommonProps && (
+          <>
+            <div className="mt-6 rounded-2xl border border-emerald-200/90 bg-emerald-50/90 p-5 shadow-sm">
+              <p className="text-sm font-medium leading-relaxed text-emerald-950">
+                Votre achat est confirmé. Vous pouvez consulter ou enregistrer votre reçu (PDF via la boîte de dialogue
+                d&apos;impression du navigateur).
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReceiptDialogOpen(true)}
+                  className="focus-ring inline-flex items-center gap-2 rounded-xl border border-festigo/30 bg-white px-5 py-2.5 text-sm font-semibold text-festigo shadow-sm transition-colors hover:bg-festigo/5"
+                >
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Voir le reçu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="focus-ring inline-flex items-center gap-2 rounded-xl bg-festigo px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-festigo/20 transition-colors hover:bg-festigo-hover"
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Télécharger le reçu
+                </button>
+              </div>
+            </div>
+            <div
+              className="purchase-receipt-print-root pointer-events-none fixed top-0 -left-[20000px] w-[760px]"
+              aria-hidden
+            >
+              <PurchaseReceiptCard {...receiptCommonProps} />
+            </div>
+            {receiptDialogOpen ? (
+              <div
+                className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 sm:items-center"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="purchase-receipt-dialog-title"
+              >
+                <button
+                  type="button"
+                  className="absolute inset-0 cursor-default"
+                  aria-label="Fermer l’aperçu du reçu"
+                  onClick={() => setReceiptDialogOpen(false)}
+                />
+                <div
+                  className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 id="purchase-receipt-dialog-title" className="text-lg font-bold text-slate-900">
+                    Reçu — {receiptCommonProps.orderId}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Aperçu de votre commande. « Télécharger le reçu » ouvre l&apos;impression : choisissez « Enregistrer au
+                    format PDF » si votre navigateur le propose.
+                  </p>
+                  <div className="mt-4 rounded-xl border border-slate-200/80 bg-white p-1 shadow-sm">
+                    <PurchaseReceiptCard {...receiptCommonProps} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setReceiptDialogOpen(false)}
+                      className="focus-ring rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Fermer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="focus-ring inline-flex items-center gap-2 rounded-xl bg-festigo px-4 py-2 text-sm font-semibold text-white hover:bg-festigo-hover"
+                    >
+                      <Printer className="h-4 w-4" aria-hidden />
+                      Enregistrer en PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+
         <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Informations</h2>
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -427,49 +629,51 @@ export function CommandeRecap({ commandeId, onBack }: CommandeRecapProps) {
           </dl>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Package className="h-5 w-5 text-festigo" />
-            <h2 className="text-lg font-semibold text-slate-900">Détail des billets</h2>
-          </div>
-
-          {lignes.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-gray-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-              Aucun billet n&apos;est encore associé à cette commande.
-            </p>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-100">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-slate-50/80">
-                    <th className="px-4 py-3 font-semibold text-slate-700">Catégorie</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Qté</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Prix unit.</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Sous-total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lignes.map((l) => (
-                    <tr key={l.typeBilletId} className="border-b border-gray-50 transition-colors duration-200 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{l.libelle}</td>
-                      <td className="px-4 py-3 text-center tabular-nums text-slate-700">{l.quantite}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-600">{eur(l.prixUnitaire)}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">{eur(l.sousTotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {commande.statut !== StatutCommande.VALIDEE && (
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Package className="h-5 w-5 text-festigo" />
+              <h2 className="text-lg font-semibold text-slate-900">Détail des billets</h2>
             </div>
-          )}
 
-          <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
-            <span className="text-base font-bold text-slate-900">Montant total</span>
-            <span className="text-xl font-bold tabular-nums text-emerald-700">{eur(commande.montantTotal)}</span>
+            {lignes.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-gray-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Aucun billet n&apos;est encore associé à cette commande.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-gray-100">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-slate-50/80">
+                      <th className="px-4 py-3 font-semibold text-slate-700">Catégorie</th>
+                      <th className="px-4 py-3 text-center font-semibold text-slate-700">Qté</th>
+                      <th className="px-4 py-3 text-right font-semibold text-slate-700">Prix unit.</th>
+                      <th className="px-4 py-3 text-right font-semibold text-slate-700">Sous-total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lignes.map((l) => (
+                      <tr key={l.typeBilletId} className="border-b border-gray-50 transition-colors duration-200 last:border-0 hover:bg-slate-50/50">
+                        <td className="px-4 py-3 font-medium text-slate-900">{l.libelle}</td>
+                        <td className="px-4 py-3 text-center tabular-nums text-slate-700">{l.quantite}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-slate-600">{eur(l.prixUnitaire)}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">{eur(l.sousTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
+              <span className="text-base font-bold text-slate-900">Montant total</span>
+              <span className="text-xl font-bold tabular-nums text-emerald-700">{eur(commande.montantTotal)}</span>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              Le montant enregistré sur la commande est celui retourné par le serveur (frais éventuels inclus selon règles métier).
+            </p>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            Le montant enregistré sur la commande est celui retourné par le serveur (frais éventuels inclus selon règles métier).
-          </p>
-        </div>
+        )}
       </main>
     </div>
   );

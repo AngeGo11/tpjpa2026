@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LayoutDashboard, Settings, Shield, Check, X, Calendar, MapPin, User, Clock, Search, Filter } from 'lucide-react';
+import { FestigoLogo } from './festigo-logo';
 
 type EventStatus = 'pending' | 'published' | 'past';
 
@@ -146,7 +147,7 @@ export function AdminEventValidation({ onNavigateToSettings }: AdminEventValidat
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">FestiGo<span className="text-accent">.</span></h1>
+          <FestigoLogo className="h-9 max-w-[52px]" />
           <p className="text-xs text-muted-foreground font-light mt-1">Panneau d'administration</p>
         </div>
         

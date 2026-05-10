@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Ticket, Bookmark, Download, Send, QrCode, Calendar, MapPin, Clock, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Ticket, Bookmark, Download, QrCode, Calendar, MapPin, Clock, Loader2, X } from 'lucide-react';
 import { authService } from '../services/authService';
 import { getUserDisplayName, getUserFirstName, getUserInitials } from '../services/userService';
 import { fetchUserTickets, type UserTicketView } from '../services/userTicketsService';
 import type { Event } from '../services/eventService';
 import * as favoriteService from '../services/favoriteService';
+import { FestigoDigitalPass, FestigoEntryQrThumb } from './festigo-digital-pass';
+import { FestigoLogo } from './festigo-logo';
 
 export type UserDashboardView = 'tickets' | 'favorites' | 'profile' | 'settings' | 'help';
 export type FanAppSection = 'discovery' | UserDashboardView;
@@ -63,6 +66,8 @@ export function UserDashboard({
   const [favoriteEvents, setFavoriteEvents] = useState<Event[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
+  const [detailTicket, setDetailTicket] = useState<UserTicketView | null>(null);
+  const [printTicket, setPrintTicket] = useState<UserTicketView | null>(null);
 
   const loadTickets = useCallback(async () => {
     if (!currentUser?.id) {
@@ -115,6 +120,18 @@ export function UserDashboard({
     };
   }, [activeView, currentUser?.id]);
 
+  useEffect(() => {
+    if (!printTicket) return;
+    const id = requestAnimationFrame(() => window.print());
+    return () => cancelAnimationFrame(id);
+  }, [printTicket]);
+
+  useEffect(() => {
+    const onAfterPrint = () => setPrintTicket(null);
+    window.addEventListener('afterprint', onAfterPrint);
+    return () => window.removeEventListener('afterprint', onAfterPrint);
+  }, []);
+
   const filteredTickets = useMemo(() => {
     const f = userTickets.filter((ticket) => ticket.status === ticketFilter);
     if (ticketFilter === 'upcoming') {
@@ -131,8 +148,12 @@ export function UserDashboard({
     return 'bg-gray-50 text-gray-700 border border-gray-200';
   };
 
-  const handleDownload = (ticketId: number) => {
-    console.log('Downloading ticket:', ticketId);
+  const handleDownloadPdf = (ticket: UserTicketView) => {
+    setPrintTicket(ticket);
+  };
+
+  const handleViewTicket = (ticket: UserTicketView) => {
+    setDetailTicket(ticket);
   };
 
   const handleTransfer = (ticketId: number) => {
@@ -165,8 +186,59 @@ export function UserDashboard({
     return value.startsWith('/') ? value : '/images/login-branding.jpg';
   };
 
+  const ticketHolderName = currentUser ? getUserDisplayName(currentUser) : '';
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
+      {printTicket &&
+        createPortal(
+          <div className="festigo-ticket-print-root flex justify-center bg-white p-8">
+            <FestigoDigitalPass ticket={printTicket} holderName={ticketHolderName || '—'} />
+          </div>,
+          document.body
+        )}
+
+      {detailTicket && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="festigo-ticket-dialog-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px]"
+            aria-label="Fermer"
+            onClick={() => setDetailTicket(null)}
+          />
+          <div className="relative z-[1] max-h-[min(92dvh,100vh)] w-full max-w-[460px] overflow-y-auto rounded-2xl shadow-2xl">
+            <div className="rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 p-5 ring-1 ring-white/10 sm:p-6">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <p id="festigo-ticket-dialog-title" className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                    Passe numérique
+                  </p>
+                  <FestigoLogo
+                    variant="onDark"
+                    className="mt-1 h-8 max-w-[52px]"
+                    wordmarkClassName="text-sm font-bold"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailTicket(null)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  aria-label="Fermer le billet"
+                >
+                  <X className="h-5 w-5" strokeWidth={2} />
+                </button>
+              </div>
+              <FestigoDigitalPass ticket={detailTicket} holderName={ticketHolderName || '—'} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className={`min-h-0 flex-1 overflow-auto ${activeView === 'tickets' ? 'bg-gray-50' : 'bg-gray-50/90'}`}>
         {activeView === 'tickets' && (
           <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
@@ -326,7 +398,7 @@ export function UserDashboard({
                           <div className="mt-6 flex flex-wrap items-center gap-3">
                             <button
                               type="button"
-                              onClick={() => handleDownload(ticket.id)}
+                              onClick={() => handleDownloadPdf(ticket)}
                               className="inline-flex items-center gap-2 rounded-lg bg-festigo px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
                             >
                               <Download className="h-4 w-4" />
@@ -334,8 +406,8 @@ export function UserDashboard({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDownload(ticket.id)}
-                              className="inline-flex items-center gap-1 text-sm font-medium text-festigo transition-colors hover:text-festigo"
+                              onClick={() => handleViewTicket(ticket)}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-festigo transition-colors hover:text-festigo-hover"
                             >
                               <QrCode className="h-4 w-4" />
                               Voir le billet
@@ -347,8 +419,8 @@ export function UserDashboard({
                         <div className="relative flex flex-col items-center justify-center border-t-2 border-dashed border-gray-200 bg-gray-50/50 px-6 py-8 md:w-56 md:border-l-2 md:border-t-0 md:bg-white md:px-4">
                           <span className="absolute -top-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rounded-full bg-gray-50 ring-2 ring-white md:left-0 md:top-8 md:block md:translate-x-[-50%]" />
                           <span className="absolute -bottom-2 left-1/2 hidden h-4 w-4 -translate-x-1/2 rounded-full bg-gray-50 ring-2 ring-white md:left-0 md:bottom-8 md:block md:translate-x-[-50%]" />
-                          <div className="flex w-36 flex-col items-center rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-                            <QrCode className="h-20 w-20 text-festigo" aria-hidden />
+                          <div className="flex w-36 flex-col items-center rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                            <FestigoEntryQrThumb className="h-24 w-24" />
                           </div>
                           <p className="mt-3 text-center text-xs text-gray-500">Scan à l&apos;entrée</p>
                           <p className="mt-1 font-mono text-[11px] text-gray-400">{ticket.qrCode}</p>
