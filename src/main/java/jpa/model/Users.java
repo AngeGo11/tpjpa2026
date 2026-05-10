@@ -18,6 +18,9 @@ public class Users implements Serializable {
 
     private List<Commande> commandes = new ArrayList<>();
 
+    /** Événements mis en favori (table de jointure {@code user_event_favorites}). */
+    private List<Events> favoriteEvents = new ArrayList<>();
+
     public Users() {
     }
 
@@ -92,7 +95,18 @@ public class Users implements Serializable {
         this.commandes = commandes;
     }
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_event_favorites",
+            joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "event_id", referencedColumnName = "id")
+    )
+    public List<Events> getFavoriteEvents() {
+        return favoriteEvents;
+    }
 
-
+    public void setFavoriteEvents(List<Events> favoriteEvents) {
+        this.favoriteEvents = favoriteEvents;
+    }
 
 }

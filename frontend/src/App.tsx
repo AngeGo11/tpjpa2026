@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { OrganizerDashboard } from './components/organizer-dashboard';
 import { UserDiscovery } from './components/user-discovery';
 import { EventDetails } from './components/event-details';
@@ -7,19 +7,13 @@ import { CommandeRecap } from './components/commande-recap';
 import { LoginFestive } from './components/login-festive';
 import { SignupFestive } from './components/signup-festive';
 import { AdminSettings } from './components/admin-settings';
-import {
-  UserDashboard,
-  getUserAccountMenuBadgeCounts,
-  fanAppSectionTitle,
-  type FanAppSection,
-} from './components/user-dashboard';
+import { UserDashboard, fanAppSectionTitle, type FanAppSection } from './components/user-dashboard';
 import { UserAppNavbar } from './components/user-app-navbar';
 import { authService } from './services/authService';
 import { countUserUpcomingTickets } from './services/userTicketsService';
+import * as favoriteService from './services/favoriteService';
 
 type View = 'dashboard' | 'event-details' | 'login' | 'signup' | 'admin-settings' | 'fan';
-
-const accountBadgeCounts = getUserAccountMenuBadgeCounts();
 
 export default function App() {
   // L'état initial est calculé en fonction de l'utilisateur stocké dans le localStorage
@@ -36,6 +30,19 @@ export default function App() {
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [recapCommandeId, setRecapCommandeId] = useState<number | null>(null);
   const [upcomingTicketCount, setUpcomingTicketCount] = useState(0);
+  const [favoritesCount, setFavoritesCount] = useState(0);
+
+  const refreshFavoritesCount = useCallback(() => {
+    const u = authService.getCurrentUser();
+    if (!u?.id) {
+      setFavoritesCount(0);
+      return;
+    }
+    void favoriteService
+      .getFavoriteEvents(u.id)
+      .then((list) => setFavoritesCount(list.length))
+      .catch(() => setFavoritesCount(0));
+  }, []);
 
   useEffect(() => {
     if (currentView !== 'fan') {
@@ -55,6 +62,14 @@ export default function App() {
     }
   }, [currentView, fanSection, recapCommandeId]);
 
+  useEffect(() => {
+    if (currentView !== 'fan') {
+      setFavoritesCount(0);
+      return;
+    }
+    refreshFavoritesCount();
+  }, [currentView, fanSection, refreshFavoritesCount]);
+
   const handleEventSelect = (eventId: number) => {
     setSelectedEventId(eventId);
     setCurrentView('event-details');
@@ -68,6 +83,12 @@ export default function App() {
     setSelectedEventId(null);
     setCurrentView('fan');
     setFanSection('discovery');
+    refreshFavoritesCount();
+  };
+
+  const handleOpenEventFromAccount = (eventId: number) => {
+    setSelectedEventId(eventId);
+    setCurrentView('event-details');
   };
 
   return (
@@ -101,7 +122,12 @@ export default function App() {
         />
       )}
       {currentView === 'event-details' && selectedEventId && (
-        <EventDetails eventId={selectedEventId} onBookTickets={handleBookTickets} onBack={handleBackToEvents} />
+        <EventDetails
+          eventId={selectedEventId}
+          onBookTickets={handleBookTickets}
+          onBack={handleBackToEvents}
+          onFavoritesChanged={refreshFavoritesCount}
+        />
       )}
 
       {currentView === 'fan' && (
@@ -117,15 +143,21 @@ export default function App() {
               setCurrentView('login'); // Rediriger vers login après déconnexion
             }}
             upcomingTicketCount={upcomingTicketCount}
-            favoritesCount={accountBadgeCounts.favorites}
+            favoritesCount={favoritesCount}
           />
           {fanSection === 'discovery' ? (
-            <UserDiscovery onEventSelect={handleEventSelect} />
+            <UserDiscovery
+              key={authService.getCurrentUser()?.id ?? 'guest'}
+              onEventSelect={handleEventSelect}
+              onFavoritesChanged={refreshFavoritesCount}
+            />
           ) : (
             <UserDashboard
               activeView={fanSection}
               onDiscoverEvents={() => setFanSection('discovery')}
               onLogin={() => setCurrentView('login')}
+              onFavoritesChanged={refreshFavoritesCount}
+              onOpenEvent={handleOpenEventFromAccount}
             />
           )}
         </div>

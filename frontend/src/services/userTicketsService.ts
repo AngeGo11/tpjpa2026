@@ -13,7 +13,7 @@ function labelTypeBillet(type: TypeBilletType): string {
   }
 }
 
-function parseEventStartMs(ev: Event): number {
+export function parseEventStartMs(ev: Event): number {
   try {
     const raw = ev.date;
     const day =

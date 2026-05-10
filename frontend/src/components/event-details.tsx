@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, Share2, Bookmark, Music, Users, Star, ArrowLeft } from 'lucide-react';
 import { eventService, Event } from '../services/eventService';
 import { artisteService, Artiste } from '../services/artisteService';
+import { authService } from '../services/authService';
+import * as favoriteService from '../services/favoriteService';
 
 interface EventDetailsProps {
   eventId: number; // Nouveau: on passe l'ID de l'événement à afficher
   onBookTickets: () => void;
   onBack: () => void;
+  onFavoritesChanged?: () => void;
 }
 
-export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsProps) {
+export function EventDetails({ eventId, onBookTickets, onBack, onFavoritesChanged }: EventDetailsProps) {
   const [isSaved, setIsSaved] = useState(false);
   const [event, setEvent] = useState<Event | null>(null);
   const [mainArtist, setMainArtist] = useState<Artiste | null>(null);
@@ -57,6 +60,47 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
 
     fetchEventData();
   }, [eventId]);
+
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (!user?.id) {
+      setIsSaved(false);
+      return;
+    }
+    let cancelled = false;
+    favoriteService
+      .getFavoriteStatus(user.id, eventId)
+      .then((fav) => {
+        if (!cancelled) setIsSaved(fav);
+      })
+      .catch(() => {
+        if (!cancelled) setIsSaved(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
+
+  const handleToggleFavorite = async () => {
+    const user = authService.getCurrentUser();
+    if (!user?.id) {
+      window.alert('Connecte-toi pour enregistrer cet événement dans tes favoris.');
+      return;
+    }
+    try {
+      if (isSaved) {
+        await favoriteService.removeFavorite(user.id, eventId);
+        setIsSaved(false);
+      } else {
+        await favoriteService.addFavorite(user.id, eventId);
+        setIsSaved(true);
+      }
+      onFavoritesChanged?.();
+    } catch (err) {
+      console.error(err);
+      window.alert('Impossible de mettre à jour les favoris.');
+    }
+  };
 
   // Fonction utilitaire pour gérer les images venant du backend qui pourraient être invalides
   const getImageUrl = (imagePath: string | undefined | null) => {
@@ -298,7 +342,7 @@ export function EventDetails({ eventId, onBookTickets, onBack }: EventDetailsPro
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setIsSaved((v) => !v)}
+                      onClick={() => void handleToggleFavorite()}
                       className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 ${
                         isSaved
                           ? 'border-festigo/30 bg-festigo/10 text-festigo hover:border-festigo/40 hover:bg-festigo/15'

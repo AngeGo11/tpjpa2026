@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
   Ticket,
@@ -27,8 +27,29 @@ import { eventService, Event, GenreMusical } from '../services/eventService';
 import { authService } from '../services/authService';
 import { artisteService, Artiste } from '../services/artisteService';
 import { typeBilletService, TypeBilletType } from '../services/typeBilletService';
+import { billetService } from '../services/billetService';
+import { commandeService, StatutCommande } from '../services/commandeService';
+import { parseEventStartMs } from '../services/userTicketsService';
 
 type OrganizerView = 'dashboard' | 'my-events' | 'edit-event';
+
+/** Réponse plate de GET /api/billets (le typage `Billet` du service peut être trop strict). */
+type ApiBilletRow = {
+  commandeId?: number;
+  typeBilletId?: number;
+  commande?: { id?: number };
+  typeBillet?: { id?: number };
+};
+
+function getBilletCommandeAndTypeIds(b: ApiBilletRow): { commandeId: number; typeBilletId: number } | null {
+  const commandeIdRaw = b.commandeId ?? b.commande?.id;
+  const typeBilletIdRaw = b.typeBilletId ?? b.typeBillet?.id;
+  if (commandeIdRaw == null || typeBilletIdRaw == null) return null;
+  const commandeId = Number(commandeIdRaw);
+  const typeBilletId = Number(typeBilletIdRaw);
+  if (!Number.isFinite(commandeId) || !Number.isFinite(typeBilletId)) return null;
+  return { commandeId, typeBilletId };
+}
 
 const salesData = [
   { month: 'Jan', revenue: 0 },
@@ -53,6 +74,8 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
   const [view, setView] = useState<OrganizerView>('dashboard');
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  /** Somme des prix des billets vendus (commandes validées) pour les événements de cet organisateur. */
+  const [estimatedRevenue, setEstimatedRevenue] = useState<number | null>(null);
   const currentUser = authService.getCurrentUser();
   const organizerName = currentUser?.nomOrganisation || currentUser?.nom || 'Organisateur';
 
@@ -95,6 +118,69 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
     fetchMyEvents();
     fetchArtists();
   }, []);
+
+  useEffect(() => {
+    if (events.length === 0) {
+      setEstimatedRevenue(0);
+      return;
+    }
+    const myEventIds = new Set(events.map((e) => e.id));
+    let cancelled = false;
+    (async () => {
+      try {
+        const [billets, types, commandes] = await Promise.all([
+          billetService.getAllBillets(),
+          typeBilletService.getAllTypeBillets(),
+          commandeService.getAllCommandes(),
+        ]);
+        if (cancelled) return;
+
+        const validatedCommandeIds = new Set(
+          commandes.filter((c) => c.statut === StatutCommande.VALIDEE).map((c) => c.id)
+        );
+
+        const prixByTypeBilletId = new Map<number, { eventId: number; prix: number }>();
+        for (const t of types) {
+          if (t.id == null || t.eventId == null) continue;
+          prixByTypeBilletId.set(t.id, { eventId: t.eventId, prix: t.prix });
+        }
+
+        let sum = 0;
+        for (const raw of billets as ApiBilletRow[]) {
+          const ids = getBilletCommandeAndTypeIds(raw);
+          if (!ids) continue;
+          if (!validatedCommandeIds.has(ids.commandeId)) continue;
+
+          const meta = prixByTypeBilletId.get(ids.typeBilletId);
+          if (!meta || !myEventIds.has(meta.eventId)) continue;
+
+          sum += meta.prix;
+        }
+
+        setEstimatedRevenue(sum);
+      } catch (err) {
+        console.error('Erreur calcul du revenu estimé', err);
+        if (!cancelled) setEstimatedRevenue(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [events]);
+
+  const { upcomingEventCount, pastEventCount } = useMemo(() => {
+    const now = Date.now();
+    let upcoming = 0;
+    let past = 0;
+    for (const ev of events) {
+      const startMs = parseEventStartMs(ev);
+      if (!Number.isFinite(startMs)) continue;
+      if (startMs >= now) upcoming += 1;
+      else past += 1;
+    }
+    return { upcomingEventCount: upcoming, pastEventCount: past };
+  }, [events]);
 
   const fetchMyEvents = async () => {
     setIsLoadingEvents(true);
@@ -155,6 +241,17 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
       );
     };
     reader.readAsDataURL(file);
+  };
+
+  /** Aperçu photo artiste : data URL, URL absolue, ou chemin renvoyé par l’API (`/images/...`). */
+  const getArtistFormImageSrc = (preview: string) => {
+    const v = (preview || '').trim();
+    if (!v) return null;
+    if (v.startsWith('data:') || v.startsWith('http://') || v.startsWith('https://')) return v;
+    if (v.startsWith('/images/')) return v;
+    const fileName = v.split('/').pop()?.split('?')[0];
+    if (fileName) return `/images/${encodeURIComponent(fileName)}`;
+    return v.startsWith('/') ? v : null;
   };
 
   const handleEventImageUpload = (file: File | null) => {
@@ -342,7 +439,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
       if (foundArtist && foundArtist.id) {
          artistePrincipalId = foundArtist.id;
-         if (headlinerInput.imageFile && artisteService.uploadArtisteImage) {
+         if (headlinerInput.imageFile) {
             await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile).catch(console.error);
          }
       } else {
@@ -352,7 +449,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
             photoUrl: ''
          });
          artistePrincipalId = newArtist.id!;
-         if (headlinerInput.imageFile && artisteService.uploadArtisteImage) {
+         if (headlinerInput.imageFile) {
             await artisteService.uploadArtisteImage(artistePrincipalId, headlinerInput.imageFile).catch(console.error);
          }
          setAvailableArtists([...availableArtists, newArtist]);
@@ -369,7 +466,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
          if (fGuest && fGuest.id) {
             inviteIds.push(fGuest.id);
-            if (guest.imageFile && artisteService.uploadArtisteImage) {
+            if (guest.imageFile) {
               await artisteService.uploadArtisteImage(fGuest.id, guest.imageFile).catch(console.error);
             }
          } else {
@@ -379,7 +476,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                photoUrl: ''
             });
             inviteIds.push(nGuest.id!);
-            if (guest.imageFile && artisteService.uploadArtisteImage) {
+            if (guest.imageFile) {
               await artisteService.uploadArtisteImage(nGuest.id!, guest.imageFile).catch(console.error);
             }
             setAvailableArtists(prev => [...prev, nGuest]);
@@ -486,7 +583,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
           <h1 className="text-lg font-bold tracking-tight text-gray-900">
             FestiGo<span className="text-festigo">.</span>
           </h1>
-          <p className="mt-0.5 text-xs font-medium text-gray-500">Organizer Panel</p>
+          <p className="mt-0.5 text-xs font-medium text-gray-500">Gestion des événements</p>
         </div>
 
         <nav className="flex-1 space-y-0.5 p-3">
@@ -561,7 +658,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                 </p>
               </div>
 
-              <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
                 <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="mb-4 flex items-start justify-between">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-festigo/10">
@@ -569,23 +666,37 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                     </div>
                   </div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Revenue Estimé</p>
-                  <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900">-- €</p>
-                </div>
-
-                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex items-start justify-between">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-festigo/10">
-                      <Ticket className="h-6 w-6 text-festigo" />
-                    </div>
-                  </div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Capacité Totale</p>
-                  <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900">{totalCapacity}</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
+                    {estimatedRevenue === null
+                      ? '— €'
+                      : `${estimatedRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="mb-4 flex items-start justify-between">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-festigo/10">
                       <Calendar className="h-6 w-6 text-festigo" />
+                    </div>
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Évènements à venir</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900">{upcomingEventCount}</p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <div className="mb-4 flex items-start justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-festigo/10">
+                      <X className="h-6 w-6 text-festigo" />
+                    </div>
+                  </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Évènements terminés</p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900">{pastEventCount}</p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <div className="mb-4 flex items-start justify-between">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-festigo/10">
+                      <Users className="h-6 w-6 text-festigo" />
                     </div>
                     <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                       Actifs
@@ -855,6 +966,53 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                             </button>
                           )}
                         </div>
+
+                        <div className="mt-4 border-t border-gray-200/80 pt-4">
+                          <label className="mb-2 block text-xs font-medium text-gray-500">
+                            Photo de l&apos;artiste <span className="font-normal text-gray-400">(optionnel)</span>
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3">
+                            <input
+                              id={`artist-photo-${artist.id}`}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleArtistImageUpload(artist.id, e.target.files?.[0] ?? null)}
+                            />
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-festigo/20 bg-gradient-to-br from-festigo/10 to-violet-100">
+                              {getArtistFormImageSrc(artist.imagePreview) ? (
+                                <img
+                                  src={getArtistFormImageSrc(artist.imagePreview)!}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <ImageIcon className="h-6 w-6 text-festigo/60" aria-hidden />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <label
+                                htmlFor={`artist-photo-${artist.id}`}
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-festigo px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover"
+                              >
+                                <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                                {artist.imageName || artist.imageFile || getArtistFormImageSrc(artist.imagePreview)
+                                  ? 'Changer la photo'
+                                  : 'Ajouter une photo'}
+                              </label>
+                              <p className="truncate text-xs text-gray-500">
+                                {artist.imageName ||
+                                  (getArtistFormImageSrc(artist.imagePreview) && !artist.imageFile
+                                    ? 'Photo enregistrée'
+                                    : 'Carré ou portrait, envoyée à l’enregistrement de l’événement')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
                         {artist.role === 'headliner' && (
                           <div className="mt-3 flex items-center gap-2 text-xs font-medium text-festigo">
                             <div className="h-2 w-2 rounded-full bg-festigo" />

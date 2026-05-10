@@ -24,6 +24,8 @@ public class Events implements Serializable {
     private Artiste artistePrincipal;
     private List<Artiste> invites = new ArrayList<>();
 
+    /** Inverse de {@link Users#getFavoriteEvents()} — utilisateurs ayant mis cet événement en favori. */
+    private List<Users> favoritedByUsers = new ArrayList<>();
 
     public Events() {
     }
@@ -157,6 +159,15 @@ public class Events implements Serializable {
 
     public void setInvites(List<Artiste> invites) {
         this.invites = invites;
+    }
+
+    @ManyToMany(mappedBy = "favoriteEvents", fetch = FetchType.LAZY)
+    public List<Users> getFavoritedByUsers() {
+        return favoritedByUsers;
+    }
+
+    public void setFavoritedByUsers(List<Users> favoritedByUsers) {
+        this.favoritedByUsers = favoritedByUsers;
     }
 
     public enum GenreMusical {

@@ -3,73 +3,17 @@ import { Ticket, Bookmark, Download, Send, QrCode, Calendar, MapPin, Clock, Load
 import { authService } from '../services/authService';
 import { getUserDisplayName, getUserFirstName, getUserInitials } from '../services/userService';
 import { fetchUserTickets, type UserTicketView } from '../services/userTicketsService';
+import type { Event } from '../services/eventService';
+import * as favoriteService from '../services/favoriteService';
 
 export type UserDashboardView = 'tickets' | 'favorites' | 'profile' | 'settings' | 'help';
 export type FanAppSection = 'discovery' | UserDashboardView;
 type TicketStatus = 'upcoming' | 'past';
 
-interface FavoriteEvent {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  venue: string;
-  image: string;
-  price: number;
-  category: string;
-}
-
-const mockFavorites: FavoriteEvent[] = [
-  {
-    id: 1,
-    title: 'Indie Collective Tour',
-    date: 'August 18, 2026',
-    time: '9:00 PM',
-    venue: 'The Underground',
-    image:
-      'https://images.unsplash.com/photo-1767462372392-31b5b98e480e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmRpZSUyMGJhbmQlMjBwZXJmb3JtYW5jZSUyMHZlbnVlfGVufDF8fHx8MTc3MDAyOTc3MHww&ixlib=rb-4.1.0&q=80&w=1080',
-    price: 45,
-    category: 'Indie',
-  },
-  {
-    id: 2,
-    title: 'Jazz Masters Series',
-    date: 'September 5, 2026',
-    time: '8:00 PM',
-    venue: 'Smooth Jazz Club',
-    image:
-      'https://images.unsplash.com/photo-1757439160077-dd5d62a4d851?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXp6JTIwY29uY2VydCUyMGxpdmUlMjBwZXJmb3JtYW5jZXxlbnwxfHx8fDE3NzAwMjk3Njl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    price: 75,
-    category: 'Jazz',
-  },
-  {
-    id: 3,
-    title: 'Electronic Waves',
-    date: 'September 12, 2026',
-    time: '11:00 PM',
-    venue: 'Warehouse District',
-    image:
-      'https://images.unsplash.com/photo-1624703307604-744ec383cbf4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVjdHJvbmljJTIwbXVzaWMlMjBmZXN0aXZhbCUyMGRqfGVufDF8fHx8MTc2OTk5ODc4M3ww&ixlib=rb-4.1.0&q=80&w=1080',
-    price: 55,
-    category: 'Electronic',
-  },
-  {
-    id: 4,
-    title: 'Rock Legends Live',
-    date: 'September 20, 2026',
-    time: '7:30 PM',
-    venue: 'Arena Center',
-    image:
-      'https://images.unsplash.com/photo-1683612491338-ab87b7ac6583?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyb2NrJTIwY29uY2VydCUyMHN0YWdlJTIwbGlnaHRzfGVufDF8fHx8MTc3MDAyOTc3MHww&ixlib=rb-4.1.0&q=80&w=1080',
-    price: 85,
-    category: 'Rock',
-  },
-];
-
-/** Compteurs statiques pour le menu (les billets à venir sont chargés dynamiquement dans `App`). */
+/** @deprecated Le badge « Favoris » est alimenté dynamiquement depuis `App`. */
 export function getUserAccountMenuBadgeCounts() {
   return {
-    favorites: mockFavorites.length,
+    favorites: 0,
   };
 }
 
@@ -99,15 +43,26 @@ export interface UserDashboardProps {
   onDiscoverEvents?: () => void;
   onLogin?: () => void;
   activeView: UserDashboardView;
+  onFavoritesChanged?: () => void;
+  onOpenEvent?: (eventId: number) => void;
 }
 
-export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDashboardProps) {
+export function UserDashboard({
+  onDiscoverEvents,
+  onLogin,
+  activeView,
+  onFavoritesChanged,
+  onOpenEvent,
+}: UserDashboardProps) {
   const currentUser = authService.getCurrentUser();
   const firstName = currentUser ? getUserFirstName(currentUser) : null;
   const [ticketFilter, setTicketFilter] = useState<TicketStatus>('upcoming');
   const [userTickets, setUserTickets] = useState<UserTicketView[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
+  const [favoriteEvents, setFavoriteEvents] = useState<Event[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
 
   const loadTickets = useCallback(async () => {
     if (!currentUser?.id) {
@@ -131,6 +86,34 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
     if (activeView !== 'tickets') return;
     void loadTickets();
   }, [activeView, loadTickets]);
+
+  useEffect(() => {
+    if (activeView !== 'favorites' || !currentUser?.id) {
+      setFavoriteEvents([]);
+      setFavoritesError(null);
+      return;
+    }
+    let cancelled = false;
+    setFavoritesLoading(true);
+    setFavoritesError(null);
+    favoriteService
+      .getFavoriteEvents(currentUser.id)
+      .then((list) => {
+        if (!cancelled) setFavoriteEvents(list);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFavoriteEvents([]);
+          setFavoritesError('Impossible de charger tes favoris.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFavoritesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeView, currentUser?.id]);
 
   const filteredTickets = useMemo(() => {
     const f = userTickets.filter((ticket) => ticket.status === ticketFilter);
@@ -156,12 +139,30 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
     console.log('Transferring ticket:', ticketId);
   };
 
-  const handleRemoveFavorite = (eventId: number) => {
-    console.log('Removing favorite:', eventId);
+  const handleRemoveFavorite = async (eventId: number) => {
+    if (!currentUser?.id) return;
+    try {
+      await favoriteService.removeFavorite(currentUser.id, eventId);
+      setFavoriteEvents((prev) => prev.filter((e) => e.id !== eventId));
+      onFavoritesChanged?.();
+    } catch (err) {
+      console.error(err);
+      window.alert('Impossible de retirer ce favori.');
+    }
   };
 
   const handleBuyNow = (eventId: number) => {
-    console.log('Buying ticket for event:', eventId);
+    onOpenEvent?.(eventId);
+  };
+
+  const getFavoriteCardImageUrl = (imagePath: string | undefined | null) => {
+    const value = (imagePath || '').trim();
+    if (!value) return '/images/login-branding.jpg';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:')) return value;
+    if (value.startsWith('/images/')) return value;
+    const fileName = value.split('/').pop()?.split('?')[0];
+    if (fileName) return `/images/${encodeURIComponent(fileName)}`;
+    return value.startsWith('/') ? value : '/images/login-branding.jpg';
   };
 
   return (
@@ -291,15 +292,7 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                               <p className="mt-1 font-mono text-xs text-gray-400">{ticket.orderNumber}</p>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <span
-                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                                  ticket.status === 'upcoming'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-gray-100 text-gray-700'
-                                }`}
-                              >
-                                {ticket.status === 'upcoming' ? 'Confirmé' : 'Terminé'}
-                              </span>
+                              
                               <span
                                 className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${getTicketTypeStyles(ticket.ticketType)}`}
                               >
@@ -347,16 +340,7 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                               <QrCode className="h-4 w-4" />
                               Voir le billet
                             </button>
-                            {ticket.status === 'upcoming' && (
-                              <button
-                                type="button"
-                                onClick={() => handleTransfer(ticket.id)}
-                                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
-                              >
-                                <Send className="h-4 w-4" />
-                                Transférer
-                              </button>
-                            )}
+                            
                           </div>
                         </div>
 
@@ -387,30 +371,54 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
               <p className="mt-1 text-gray-500">Tes événements enregistrés</p>
             </div>
 
-            {mockFavorites.length === 0 ? (
+            {!currentUser ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+                <Bookmark className="mx-auto h-14 w-14 text-gray-300" strokeWidth={1.25} aria-hidden />
+                <p className="mt-4 text-lg font-semibold text-gray-900">Connecte-toi pour voir tes favoris</p>
+                {onLogin && (
+                  <button
+                    type="button"
+                    onClick={onLogin}
+                    className="mt-8 rounded-xl bg-festigo px-8 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
+                  >
+                    Se connecter
+                  </button>
+                )}
+              </div>
+            ) : favoritesLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-10 w-10 animate-spin text-festigo" aria-hidden />
+              </div>
+            ) : favoritesError ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{favoritesError}</div>
+            ) : favoriteEvents.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center shadow-sm">
                 <Bookmark className="mx-auto h-16 w-16 text-gray-300" strokeWidth={1.5} />
                 <p className="mt-4 font-medium text-gray-600">Aucun favori</p>
+                <p className="mt-2 text-sm text-gray-500">Ajoute des événements depuis la découverte ou une fiche concert.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {mockFavorites.map((event) => (
+                {favoriteEvents.map((event) => (
                   <div
                     key={event.id}
                     className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg"
                   >
                     <div className="relative h-56 overflow-hidden">
                       <img
-                        src={event.image}
+                        src={getFavoriteCardImageUrl(event.image)}
                         alt=""
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/images/login-branding.jpg';
+                        }}
                       />
                       <div className="absolute inset-0 bg-black/45" />
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemoveFavorite(event.id);
+                          void handleRemoveFavorite(event.id);
                         }}
                         title="Retirer des favoris"
                         className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-festigo/40 bg-white/95 text-festigo shadow-[0_2px_14px_rgba(18,84,132,0.22)] ring-1 ring-festigo/15 backdrop-blur-md transition-all duration-200 hover:bg-white hover:shadow-[0_4px_18px_rgba(18,84,132,0.28)] focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 focus-visible:ring-offset-transparent active:scale-[0.96]"
@@ -424,37 +432,34 @@ export function UserDashboard({ onDiscoverEvents, onLogin, activeView }: UserDas
                         />
                       </button>
                       <span className="absolute bottom-4 left-4 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-800 backdrop-blur-sm">
-                        {event.category}
+                        {event.genreMusical}
                       </span>
                     </div>
 
                     <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{event.nom}</h3>
 
                       <div className="mt-3 space-y-2 text-sm text-gray-500">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 shrink-0" />
                           <span>
-                            {event.date} · {event.time}
+                            {event.date ? new Date(event.date).toLocaleDateString() : '—'} ·{' '}
+                            {event.heure || '—'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 shrink-0" />
-                          <span>{event.venue}</span>
+                          <span>{event.lieu}</span>
                         </div>
                       </div>
 
-                      <div className="mt-6 flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">À partir de</p>
-                          <p className="text-2xl font-bold text-gray-900">€{event.price}</p>
-                        </div>
+                      <div className="mt-6 flex items-center justify-end gap-4">
                         <button
                           type="button"
                           onClick={() => handleBuyNow(event.id)}
                           className="rounded-xl bg-festigo px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-festigo-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2"
                         >
-                          Acheter
+                          Voir & billetterie
                         </button>
                       </div>
                     </div>

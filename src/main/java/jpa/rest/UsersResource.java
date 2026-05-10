@@ -10,16 +10,23 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import jpa.dao.BilletsDAO;
 import jpa.dao.CommandeDAO;
+import jpa.dao.EventsDAO;
 import jpa.dao.UsersDAO;
 import jpa.dto.BilletsDTO;
 import jpa.dto.CommandeDTO;
+import jpa.dto.EventsDTO;
 import jpa.dto.UsersDTO;
+import jpa.model.Artiste;
 import jpa.model.Billets;
 import jpa.model.Commande;
+import jpa.model.Events;
 import jpa.model.Users;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Path("users")
@@ -148,6 +155,105 @@ public class UsersResource {
                 UriBuilder.fromResource(UsersResource.class)
                         .path(String.valueOf(entity.getId()))
                         .build()).entity(dto).build();
+    }
+
+    @GET
+    @Path("/{userId}/favorites/events")
+    @Operation(summary = "Événements favoris d’un utilisateur", description = "Liste les événements mis en favori par cet utilisateur")
+    @ApiResponse(responseCode = "200", description = "Liste renvoyée")
+    @ApiResponse(responseCode = "404", description = "Utilisateur introuvable")
+    public List<EventsDTO> listFavoriteEvents(@PathParam("userId") Long userId) {
+        UsersDAO usersDAO = new UsersDAO();
+        if (usersDAO.findOne(userId) == null) {
+            throw new NotFoundException();
+        }
+        List<Events> favorites = usersDAO.findFavoriteEvents(userId);
+        return favorites.stream()
+                .map(
+                        entity -> {
+                            EventsDTO.GenreMusical genreMusical =
+                                    EventsDTO.GenreMusical.valueOf(entity.getGenreMusical().name());
+                            List<Artiste> invites = entity.getInvites();
+                            List<Long> inviteIds =
+                                    invites != null
+                                            ? invites.stream()
+                                                    .map(Artiste::getId)
+                                                    .collect(Collectors.toList())
+                                            : Collections.emptyList();
+                            EventsDTO dto =
+                                    new EventsDTO(
+                                            entity.getNom(),
+                                            entity.getImage(),
+                                            entity.getLieu(),
+                                            entity.getDate(),
+                                            entity.getHeure(),
+                                            entity.getDescription(),
+                                            entity.getNbPlaces(),
+                                            entity.getOrganizer().getId(),
+                                            genreMusical,
+                                            entity.getArtistePrincipal().getId(),
+                                            inviteIds);
+                            dto.setId(entity.getId());
+                            return dto;
+                        })
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/{userId}/favorites/events/{eventId}/status")
+    @Operation(summary = "Statut favori pour un événement", description = "Indique si l’événement est dans les favoris de l’utilisateur")
+    @ApiResponse(responseCode = "200", description = "Statut renvoyé")
+    @ApiResponse(responseCode = "404", description = "Utilisateur ou événement introuvable")
+    public Map<String, Boolean> getFavoriteStatus(
+            @PathParam("userId") Long userId, @PathParam("eventId") Long eventId) {
+        UsersDAO usersDAO = new UsersDAO();
+        EventsDAO eventsDAO = new EventsDAO();
+        if (usersDAO.findOne(userId) == null || eventsDAO.findOne(eventId) == null) {
+            throw new NotFoundException();
+        }
+        Map<String, Boolean> body = new HashMap<>();
+        body.put("favorited", usersDAO.hasFavoriteEvent(userId, eventId));
+        return body;
+    }
+
+    @PUT
+    @Path("/{userId}/favorites/events/{eventId}")
+    @Operation(summary = "Ajouter un événement aux favoris", description = "Ajoute un lien favori (idempotent si déjà présent)")
+    @ApiResponse(responseCode = "204", description = "Favori enregistré")
+    @ApiResponse(responseCode = "404", description = "Utilisateur ou événement introuvable")
+    public Response addFavoriteEvent(
+            @PathParam("userId") Long userId, @PathParam("eventId") Long eventId) {
+        UsersDAO usersDAO = new UsersDAO();
+        EventsDAO eventsDAO = new EventsDAO();
+        if (usersDAO.findOne(userId) == null || eventsDAO.findOne(eventId) == null) {
+            throw new NotFoundException();
+        }
+        try {
+            usersDAO.addFavoriteEvent(userId, eventId);
+        } catch (IllegalStateException e) {
+            throw new NotFoundException();
+        }
+        return Response.noContent().build();
+    }
+
+    @DELETE
+    @Path("/{userId}/favorites/events/{eventId}")
+    @Operation(summary = "Retirer un événement des favoris", description = "Supprime le lien favori (idempotent si absent)")
+    @ApiResponse(responseCode = "204", description = "Favori retiré")
+    @ApiResponse(responseCode = "404", description = "Utilisateur ou événement introuvable")
+    public Response removeFavoriteEvent(
+            @PathParam("userId") Long userId, @PathParam("eventId") Long eventId) {
+        UsersDAO usersDAO = new UsersDAO();
+        EventsDAO eventsDAO = new EventsDAO();
+        if (usersDAO.findOne(userId) == null || eventsDAO.findOne(eventId) == null) {
+            throw new NotFoundException();
+        }
+        try {
+            usersDAO.removeFavoriteEvent(userId, eventId);
+        } catch (IllegalStateException e) {
+            throw new NotFoundException();
+        }
+        return Response.noContent().build();
     }
 
 }

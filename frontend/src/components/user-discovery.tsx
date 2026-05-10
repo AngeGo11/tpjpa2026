@@ -2,15 +2,18 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Search, MapPin, Calendar, Bookmark } from 'lucide-react';
 import { eventService, Event } from '../services/eventService';
 import { artisteService } from '../services/artisteService';
+import { authService } from '../services/authService';
+import * as favoriteService from '../services/favoriteService';
 
 /** Libellés de filtres rapides (affichage uniquement — aucun handler de filtre côté client pour l’instant). */
 const filterChips = ['All', 'Electro', 'Rock', 'Jazz', 'Indie', 'Hip Hop'] as const;
 
 interface UserDiscoveryProps {
   onEventSelect?: (eventId: number) => void;
+  onFavoritesChanged?: () => void;
 }
 
-export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
+export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscoveryProps) {
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => new Set());
   const [events, setEvents] = useState<Event[]>([]);
   const [artistNamesById, setArtistNamesById] = useState<Record<number, string>>({});
@@ -53,14 +56,54 @@ export function UserDiscovery({ onEventSelect }: UserDiscoveryProps) {
     fetchArtists();
   }, []);
 
-  const toggleFavorite = useCallback((eventId: number) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(eventId)) next.delete(eventId);
-      else next.add(eventId);
-      return next;
-    });
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (!user?.id) {
+      setFavoriteIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    favoriteService
+      .getFavoriteEvents(user.id)
+      .then((list) => {
+        if (!cancelled) setFavoriteIds(new Set(list.map((e) => e.id)));
+      })
+      .catch(() => {
+        if (!cancelled) setFavoriteIds(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const toggleFavorite = useCallback(
+    async (eventId: number) => {
+      const user = authService.getCurrentUser();
+      if (!user?.id) {
+        window.alert('Connecte-toi pour enregistrer tes favoris.');
+        return;
+      }
+      const wasFav = favoriteIds.has(eventId);
+      try {
+        if (wasFav) {
+          await favoriteService.removeFavorite(user.id, eventId);
+        } else {
+          await favoriteService.addFavorite(user.id, eventId);
+        }
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          if (wasFav) next.delete(eventId);
+          else next.add(eventId);
+          return next;
+        });
+        onFavoritesChanged?.();
+      } catch (err) {
+        console.error(err);
+        window.alert('Impossible de mettre à jour les favoris.');
+      }
+    },
+    [favoriteIds, onFavoritesChanged]
+  );
 
   // Fonction utilitaire pour gérer les images venant du backend qui pourraient être invalides
   const getImageUrl = (imagePath: string | undefined | null) => {
