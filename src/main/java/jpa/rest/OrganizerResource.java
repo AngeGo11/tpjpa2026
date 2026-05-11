@@ -169,4 +169,40 @@ public class OrganizerResource {
                         .path(String.valueOf(entity.getId()))
                         .build()).entity(dto).build();
     }
+
+    @PUT
+    @Path("/{organizerId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Mettre à jour un organisateur", description = "Met à jour nom, email, mot de passe et nom d'organisation")
+    @ApiResponse(responseCode = "200", description = "Organisateur mis à jour")
+    @ApiResponse(responseCode = "404", description = "Organisateur introuvable")
+    public Response updateOrganizer(@PathParam("organizerId") Long organizerId, OrganizerDTO organizerDTO) {
+        OrganizerDAO dao = new OrganizerDAO();
+        Organizer organizer = dao.findOne(organizerId);
+        if (organizer == null) {
+            return Response.status(Response.Status.NOT_FOUND).entity("Organisateur introuvable").build();
+        }
+
+        if (organizerDTO.getNom() != null) {
+            organizer.setNom(organizerDTO.getNom());
+        }
+        if (organizerDTO.getEmail() != null) {
+            organizer.setEmail(organizerDTO.getEmail());
+        }
+        if (organizerDTO.getNomOrganisation() != null) {
+            organizer.setNomOrganisation(organizerDTO.getNomOrganisation());
+        }
+        if (organizerDTO.getMdp() != null && !organizerDTO.getMdp().isBlank()) {
+            organizer.setMdp(organizerDTO.getMdp());
+        }
+
+        dao.update(organizer);
+
+        OrganizerDTO dto = new OrganizerDTO(organizer.getNomOrganisation());
+        dto.setId(organizer.getId());
+        dto.setNom(organizer.getNom());
+        dto.setEmail(organizer.getEmail());
+        return Response.ok(dto).build();
+    }
 }

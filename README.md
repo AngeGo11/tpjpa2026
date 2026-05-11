@@ -54,10 +54,15 @@ Le modèle utilise **trois relations bidirectionnelles** JPA (côté « un » et
 
 Ces relations sont en cascade (CascadeType.ALL) et orphelin-suppression (orphanRemoval = true) côté collection.
 
-### 2.6 Autres points
+### 2.6 Favoris (Users ↔ Events)
+
+Un utilisateur peut **mettre en favori** un événement. La relation est portée par une table d'association (jointure `users_favorite_events`) côté `Users` (relation **ManyToMany** unidirectionnelle vers `Events`). Le `UsersDAO` expose les méthodes métier `getFavoriteEvents`, `hasFavoriteEvent`, `addFavoriteEvent`, `removeFavoriteEvent`, utilisées par les endpoints `/api/users/{userId}/favorites/events/...`.
+
+### 2.7 Autres points
 
 - **Genres musicaux** : énumération sur l’événement (POP, ROCK, SHATTA, JAZZ, HIP_HOP, ELECTRO, RAP).
 - **Statut de commande** : ANNULE, REMBOURSE, VALIDEE — permet de gérer annulations et remboursements sans supprimer l’historique.
+- **Rôle utilisateur** : énumération `Users.Role` (`User`, `Organizer`) utilisée à la création d'un compte pour décider du sous-type instancié (`Users` ou `Organizer`).
 
 ---
 
@@ -99,71 +104,182 @@ Les ressources REST instancient ces DAOs pour charger ou modifier les entités, 
 
 La couche **REST** expose l’API HTTP. Elle est organisée dans le package **`jpa.rest`**.
 
-- **Point d’entrée** : `RestApplication` (JAX-RS `Application`) déclare le préfixe **`/api`** et enregistre toutes les classes de ressources et Swagger (`OpenApiResource`, `SwaggerResource`). Le serveur est lancé par `RestServer` (Resteasy sur Undertow, port 8080).
-- **Ressources (endpoints)** : une classe par ressource métier. Les réponses sont construites à partir des **DTO** (pas d’exposition directe des entités JPA).
+- **Point d’entrée** : `RestApplication` (JAX-RS `Application`) déclare le préfixe **`/api`** et enregistre toutes les classes de ressources, Swagger (`OpenApiResource`, `SwaggerResource`) et le filtre CORS. Le serveur est lancé par `RestServer` (Resteasy sur Undertow, port 8080).
+- **Ressources (endpoints)** : une classe par ressource métier (`ArtisteResource`, `BilletsResource`, `CommandeResource`, `EventsResource`, `OrganizerResource`, `TypeBilletResource`, `UsersResource`) plus `LoginResource` pour l'authentification (`/api/auth/login`, `/api/auth/register`). Les réponses sont construites à partir des **DTO** (pas d’exposition directe des entités JPA).
 - **DTO** : les objets échangés avec le client. Ils contiennent des champs et des identifiants pour les relations et sont sérialisés en JSON ou XML . Les ressources font la conversion entité ↔ DTO.
+- **CORS** : `CorsFilter` (provider JAX-RS, `@PreMatching`) intercepte les requêtes `OPTIONS` et ajoute les headers `Access-Control-*` à toutes les réponses pour permettre l'accès depuis le frontend Vite (en dev : `http://localhost:5173`).
+- **Upload d’images** : `LocalImageStorageService` (package `jpa.service`) sauvegarde les fichiers reçus en `multipart/form-data` dans `frontend/images/` et renvoie une URL relative `/images/<nom>`. Utilisé par `POST /api/events/{eventId}/image` et `POST /api/artiste/{artisteId}/image`.
 - **Documentation** : `SwaggerResource` sert la page Swagger UI ; l’API OpenAPI est exposée en JSON (ex. `/openapi.json`) pour une documentation interactive des endpoints.
 
 ---
 
 ## 6. Endpoints de l’API (Backend)
 
-L’API est exposée sous le préfixe **`/api`**. Les ressources sont implémentées en **JAX-RS** (Resteasy). Format de réponse : JSON et/ou XML selon les ressources. Aucune authentification ni rôles ne sont gérés dans le code actuel.
+L’API est exposée sous le préfixe **`/api`**. Les ressources sont implémentées en **JAX-RS** (Resteasy). Format de réponse : JSON et/ou XML selon les ressources. L'authentification est faite par un endpoint dédié (`/api/auth/login`) qui renvoie l'utilisateur ; le frontend persiste ensuite cet utilisateur (localStorage). Aucun rôle n'est appliqué côté serveur pour le moment.
 
 | Méthode HTTP | Endpoint (URL) | Description |
 |--------------|----------------|-------------|
-| **Artistes** | | | |
-| GET | `/api/artiste/` | Liste tous les artistes | 
-| GET | `/api/artiste/{artisteId}` | Détail d’un artiste par ID | 
-| POST | `/api/artiste` | Créer un artiste | 
-| DELETE | `/api/artiste/{artisteId}` | Supprimer un artiste | 
-| **Événements** | | | |
-| GET | `/api/events/` | Liste tous les événements | 
-| GET | `/api/events/{eventId}` | Détail d’un événement par ID | 
-| GET | `/api/events/{eventId}/organizer` | Organisateur de l’événement | 
-| GET | `/api/events/events/{eventId}/main-artist` | Artiste principal de l’événement | 
-| POST | `/api/events` | Créer un événement | 
-| DELETE | `/api/events/{eventId}` | Supprimer un événement | 
-| **Organisateurs** | | | |
-| GET | `/api/organizer/` | Liste tous les organisateurs | 
-| GET | `/api/organizer/{organizerId}` | Détail d’un organisateur par ID | 
-| GET | `/api/organizer/organizer/{organizerId}/events` | Événements d’un organisateur | 
-| POST | `/api/organizer` | Créer un organisateur | 
-| DELETE | `/api/organizer/{organizerId}` | Supprimer un organisateur | 
-| **Types de billet** | | | |
-| GET | `/api/type_billet/` | Liste tous les types de billets | 
-| GET | `/api/type_billet/{typeId}` | Détail d’un type de billet par ID | 
-| GET | `/api/type_billet/type_billet/{typeId}/events` | Événement associé au type de billet | 
-| POST | `/api/type_billet` | Créer un type de billet | 
-| **Commandes** | | | |
-| GET | `/api/commandes/` | Liste toutes les commandes | 
-| GET | `/api/commandes/{commandeId}` | Détail d’une commande par ID | 
-| GET | `/api/commandes/commandes/{commandeId}/billets` | Billets d’une commande | 
-| POST | `/api/commandes` | Créer une commande | 
-| DELETE | `/api/commandes/{commandeId}` | Supprimer une commande | 
-| **Billets** | | | |
-| GET | `/api/billets/` | Liste tous les billets | 
-| GET | `/api/billets/{billetId}` | Détail d’un billet par ID | 
-| GET | `/api/billets/billets/{billetId}/type_billet` | Type de billet d’un billet | 
-| POST | `/api/billets` | Créer un billet | 
-| **Utilisateurs** | | | |
-| GET | `/api/users/` | Liste tous les utilisateurs | 
-| GET | `/api/users/{userId}` | Détail d’un utilisateur par ID | 
-| GET | `/api/users/users/{userId}/commandes` | Commandes d’un utilisateur | 
-| POST | `/api/users` | Créer un utilisateur | 
-| **Documentation** | | | |
-| GET | `/api` | Page Swagger UI (documentation interactive) | 
-| GET | `/openapi.json` | Spécification OpenAPI (JSON) | 
+| **Authentification** | | |
+| POST | `/api/auth/login` | Connexion (email + mdp) — renvoie `UsersDTO` (avec rôle, et `nomOrganisation` si Organizer) |
+| POST | `/api/auth/register` | Inscription (User ou Organizer selon `role`) |
+| **Artistes** | | |
+| GET | `/api/artiste/` | Liste tous les artistes |
+| GET | `/api/artiste/{artisteId}` | Détail d’un artiste par ID |
+| POST | `/api/artiste` | Créer un artiste |
+| POST | `/api/artiste/{artisteId}/image` | Upload photo d'artiste (`multipart/form-data`, champ `file`) |
+| DELETE | `/api/artiste/{artisteId}` | Supprimer un artiste |
+| **Événements** | | |
+| GET | `/api/events/` | Liste tous les événements |
+| GET | `/api/events/{eventId}` | Détail d’un événement par ID |
+| GET | `/api/events/{eventId}/organizer` | Organisateur de l’événement |
+| GET | `/api/events/{eventId}/main-artist` | Artiste principal de l’événement |
+| GET | `/api/events/{eventId}/guest-artist` | Liste des artistes invités de l’événement |
+| POST | `/api/events` | Créer un événement |
+| PUT | `/api/events/{eventId}` | Mettre à jour un événement |
+| POST | `/api/events/{eventId}/image` | Upload affiche d'événement (`multipart/form-data`) |
+| DELETE | `/api/events/{eventId}` | Supprimer un événement |
+| **Organisateurs** | | |
+| GET | `/api/organizer/` | Liste tous les organisateurs |
+| GET | `/api/organizer/{organizerId}` | Détail d’un organisateur par ID |
+| GET | `/api/organizer/{organizerId}/events` | Événements d’un organisateur |
+| POST | `/api/organizer` | Créer un organisateur |
+| PUT | `/api/organizer/{organizerId}` | Mettre à jour un organisateur |
+| DELETE | `/api/organizer/{organizerId}` | Supprimer un organisateur |
+| **Types de billet** | | |
+| GET | `/api/type_billet/` | Liste tous les types de billets |
+| GET | `/api/type_billet/{typeId}` | Détail d’un type de billet par ID |
+| GET | `/api/type_billet/{typeId}/events` | Événement associé au type de billet |
+| POST | `/api/type_billet` | Créer un type de billet |
+| **Commandes** | | |
+| GET | `/api/commandes/` | Liste toutes les commandes |
+| GET | `/api/commandes/{commandeId}` | Détail d’une commande par ID |
+| GET | `/api/commandes/{commandeId}/billets` | Billets d’une commande |
+| POST | `/api/commandes` | Créer une commande |
+| PUT | `/api/commandes/{commandeId}` | Mettre à jour une commande (statut, montant) |
+| DELETE | `/api/commandes/{commandeId}` | Supprimer une commande |
+| **Billets** | | |
+| GET | `/api/billets/` | Liste tous les billets |
+| GET | `/api/billets/{billetId}` | Détail d’un billet par ID |
+| GET | `/api/billets/{billetId}/type_billet` | Type de billet d’un billet |
+| POST | `/api/billets` | Créer un billet |
+| **Utilisateurs** | | |
+| GET | `/api/users/` | Liste tous les utilisateurs |
+| GET | `/api/users/{userId}` | Détail d’un utilisateur par ID |
+| GET | `/api/users/{userId}/commandes` | Commandes d’un utilisateur |
+| GET | `/api/users/{userId}/billets` | Tous les billets d’un utilisateur (via ses commandes) |
+| POST | `/api/users` | Créer un utilisateur |
+| **Favoris** | | |
+| GET | `/api/users/{userId}/favorites/events` | Liste des événements favoris d’un utilisateur |
+| GET | `/api/users/{userId}/favorites/events/{eventId}/status` | Statut favori `{ "favorited": bool }` |
+| PUT | `/api/users/{userId}/favorites/events/{eventId}` | Ajouter aux favoris (idempotent) |
+| DELETE | `/api/users/{userId}/favorites/events/{eventId}` | Retirer des favoris (idempotent) |
+| **Documentation** | | |
+| GET | `/api` | Page Swagger UI (documentation interactive) |
+| GET | `/openapi.json` | Spécification OpenAPI (JSON) |
 
 ---
 
 ## 7. Technologies Utilisées
 
+### 7.1 Backend
+
 - **Java 11** (Maven compiler source/target)
 - **Maven** (build et gestion des dépendances)
 - **Jakarta Persistence (JPA) 3.0** avec **Hibernate 6.2.7** comme implémentation
-- **HSQLDB 2.7.2** (base de données par défaut pour dev/prod)
-- **Jakarta WS-RS (JAX-RS) 3.1.0** (API REST)
-- **Swagger / OpenAPI 3** (swagger-jaxrs2-jakarta 2.2.15, swagger-jaxrs2-servlet-initializer-v2) pour documentation d’API
+- **HSQLDB 2.7.2** (base de données par défaut pour dev/prod, en mode serveur)
+- **Jakarta WS-RS (JAX-RS) 3.1.0** (API REST) via **Resteasy** sur **Undertow** (serveur embarqué, port 8080)
+- **Swagger / OpenAPI 3** (`swagger-jaxrs2-jakarta` 2.2.15, `swagger-jaxrs2-servlet-initializer-v2`) pour documentation d’API
 - **Jackson 2.16.1** (jackson-core, jackson-databind) pour sérialisation JSON
-- **JAXB** (via resteasy-jaxb-provider) pour sérialisation XML
+- **JAXB** (via `resteasy-jaxb-provider`) pour sérialisation XML
+- **Multipart** (`resteasy-multipart-provider`) pour l'upload d'images
+
+### 7.2 Frontend (`frontend/`)
+
+- **React 18.3** + **TypeScript 5.6**
+- **Vite 6** (dev server `npm run dev`, build `npm run build`, port dev `5173`)
+- **Tailwind CSS 4** + **Radix UI** (`@radix-ui/react-*`) + composants `shadcn`-like dans `frontend/src/components/ui/`
+- **lucide-react** (icônes), **recharts** (graphiques du dashboard organisateur), **canvas-confetti**, **sonner** (toasts)
+- **Services HTTP** : `frontend/src/services/api.ts` centralise les appels à `/api` ; un service par ressource (`eventService`, `userService`, `commandeService`, `billetService`, `typeBilletService`, `artisteService`, `organizerService`, `favoriteService`, `userTicketsService`) + `authService` qui persiste l'utilisateur en `localStorage`.
+
+---
+
+## 8. Structure du Projet
+
+```
+tpjpa2026/
+├── pom.xml                      # Build Maven (backend)
+├── start.sh                     # Lance HSQLDB + API REST + frontend
+├── run-hsqldb-server.sh         # Démarre le serveur HSQLDB
+├── show-hsqldb.sh               # GUI DatabaseManager Swing
+├── data/                        # Fichiers HSQLDB (test.script, test.log…)
+├── src/main/java/jpa/
+│   ├── RestApplication.java     # JAX-RS Application (@ApplicationPath /api)
+│   ├── RestServer.java          # Bootstrap Undertow
+│   ├── JpaTest.java             # Petits tests JPA en main()
+│   ├── model/                   # Entités JPA (Users, Organizer, Events, …)
+│   ├── dto/                     # DTO sérialisés JSON/XML
+│   ├── dao/                     # AbstractJpaDao + DAOs concrets
+│   ├── service/                 # LocalImageStorageService (upload)
+│   └── rest/                    # Ressources JAX-RS + CorsFilter + SwaggerResource
+├── src/main/resources/
+│   └── META-INF/persistence.xml # Unité de persistance "dev"
+└── frontend/
+    ├── package.json, vite.config.ts, index.html
+    ├── images/                  # Images uploadées (servies par Vite en /images)
+    └── src/
+        ├── App.tsx, Main.tsx
+        ├── components/          # Pages et composants applicatifs
+        │   ├── organizer-dashboard.tsx
+        │   ├── organizer-calendar.tsx
+        │   ├── organizer-settings.tsx
+        │   ├── user-discovery.tsx
+        │   ├── user-dashboard.tsx
+        │   ├── event-details.tsx
+        │   ├── ticket-modal.tsx
+        │   ├── commande-recap.tsx
+        │   ├── login-festive.tsx
+        │   ├── signup-festive.tsx
+        │   └── ui/              # Primitives shadcn/Radix
+        ├── services/            # Clients HTTP par ressource
+        ├── lib/                 # Helpers (cn, etc.)
+        └── styles/              # Tailwind / globals
+```
+
+---
+
+## 9. Démarrage du projet
+
+### 9.1 Tout lancer en une commande (recommandé)
+
+Depuis la racine du dépôt :
+
+```bash
+./start.sh
+```
+
+`start.sh` enchaîne :
+
+1. `mvn compile dependency:copy-dependencies` (compile + récupère les jars dans `target/dependency/`).
+2. Démarre le **serveur HSQLDB** (`run-hsqldb-server.sh`) sur la base `test` (dossier `data/`).
+3. Démarre **l'API REST** : `java -cp "target/classes:target/dependency/*" jpa.RestServer` → http://localhost:8080/api
+4. Ouvre le **DatabaseManager Swing** d'HSQLDB pour visualiser la base.
+5. Démarre le **frontend Vite** (`cd frontend && npm run dev`) → http://localhost:5173
+
+`Ctrl+C` arrête l'ensemble.
+
+### 9.2 Lancer manuellement (étape par étape)
+
+```bash
+# 1. Base de données
+./run-hsqldb-server.sh
+
+# 2. Backend
+mvn compile dependency:copy-dependencies
+java -cp "target/classes:target/dependency/*" jpa.RestServer
+
+# 3. Frontend (dans un autre terminal)
+cd frontend
+npm install      # uniquement la première fois
+npm run dev
+```
+

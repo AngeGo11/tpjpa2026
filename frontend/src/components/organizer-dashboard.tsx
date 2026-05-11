@@ -226,6 +226,16 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
   };
 
   const updateArtist = (id: number, field: 'name' | 'role' | 'imageName' | 'imagePreview' | 'dbId', value: any) => {
+    if (field === 'role' && value === 'headliner') {
+      const alreadyHeadliner = artists.find((a) => a.role === 'headliner' && a.id !== id);
+      if (alreadyHeadliner) {
+        setSaveMessage({
+          text: "Un seul artiste principal est autorisé. Repassez d'abord l'artiste principal actuel en \"invité\" avant d'en désigner un nouveau.",
+          type: 'error',
+        });
+        return;
+      }
+    }
     setArtists(artists.map((artist) => (artist.id === id ? { ...artist, [field]: value } : artist)));
   };
 
@@ -364,6 +374,22 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
 
     if (!eventFormData.eventName || !eventFormData.category || !eventFormData.eventDate || !eventFormData.capacity) {
       setSaveMessage({text: "Erreur : Veuillez remplir tous les champs obligatoires (*).", type: 'error'});
+      return;
+    }
+
+    const headlinersAtSave = artists.filter((a) => a.role === 'headliner');
+    if (headlinersAtSave.length > 1) {
+      setSaveMessage({
+        text: "Erreur : un seul artiste principal est autorisé par événement.",
+        type: 'error',
+      });
+      return;
+    }
+    if (headlinersAtSave.length === 0) {
+      setSaveMessage({
+        text: "Erreur : vous devez désigner un artiste principal.",
+        type: 'error',
+      });
       return;
     }
 
@@ -888,7 +914,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                         <div className="flex h-24 w-40 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-festigo/20 bg-gradient-to-br from-festigo/10 to-violet-100">
                           {eventFormData.eventImagePreview ? (
                             <img
-                              src={eventFormData.eventImagePreview.startsWith('http') ? eventFormData.eventImagePreview : 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1600'}
+                              src={eventFormData.eventImagePreview}
                               alt={`Affiche de ${eventFormData.eventName || 'événement'}`}
                               className="h-full w-full object-cover"
                             />
@@ -960,7 +986,19 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                                   onChange={(e) => updateArtist(artist.id, 'role', e.target.value)}
                                   className={selectFieldClass}
                                 >
-                                  <option value="headliner">Artiste principal</option>
+                                  <option
+                                    value="headliner"
+                                    disabled={
+                                      artist.role !== 'headliner' &&
+                                      artists.some((a) => a.role === 'headliner' && a.id !== artist.id)
+                                    }
+                                  >
+                                    Artiste principal
+                                    {artist.role !== 'headliner' &&
+                                    artists.some((a) => a.role === 'headliner' && a.id !== artist.id)
+                                      ? ' (déjà défini)'
+                                      : ''}
+                                  </option>
                                   <option value="supporting">Artiste invité</option>
                                 </select>
                                 <ChevronDown
