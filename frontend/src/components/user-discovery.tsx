@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 import * as favoriteService from '../services/favoriteService';
 
 /** Libellés de filtres rapides (affichage uniquement — aucun handler de filtre côté client pour l’instant). */
-const filterChips = ['All', 'Electro', 'Rock', 'Jazz', 'Indie', 'Hip Hop'] as const;
+const filterChips = ['All', 'Electro', 'Rock', 'Jazz', 'Shatta', 'Hip Hop', 'Pop', 'Rap'] as const;
 
 interface UserDiscoveryProps {
   onEventSelect?: (eventId: number) => void;
@@ -16,6 +16,7 @@ interface UserDiscoveryProps {
 export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscoveryProps) {
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(() => new Set());
   const [events, setEvents] = useState<Event[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<(typeof filterChips)[number]>('All');
   const [artistNamesById, setArtistNamesById] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +126,21 @@ export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscove
     return value.startsWith('/') ? value : '/images/login-branding.jpg';
   };
 
+  const chipToGenre: Partial<Record<(typeof filterChips)[number], Event['genreMusical']>> = {
+    Electro: 'ELECTRO',
+    Rock: 'ROCK',
+    Jazz: 'JAZZ',
+    'Hip Hop': 'HIP_HOP',
+    Pop: 'POP',
+    Rap: 'RAP',
+    Shatta: 'SHATTA',
+  };
+
+  const filteredEvents =
+    selectedGenre === 'All'
+      ? events
+      : events.filter((event) => event.genreMusical === chipToGenre[selectedGenre]);
+
   return (
     <div className="festigo-discovery-fade-in min-h-0 flex-1 bg-gray-50 font-sans antialiased">
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
@@ -153,8 +169,9 @@ export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscove
               <button
                 key={chip}
                 type="button"
+                onClick={() => setSelectedGenre(chip)}
                 className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-festigo focus-visible:ring-offset-2 ${
-                  index === 0
+                  chip === selectedGenre
                     ? 'border-festigo bg-festigo text-white shadow-md shadow-festigo/15'
                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900'
                 }`}
@@ -170,7 +187,7 @@ export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscove
             <h3 className="text-xl font-bold text-gray-900 md:text-2xl">Prochains événements</h3>
             <p className="mt-1 text-sm text-gray-500">Sélection mise à jour pour ta région</p>
           </div>
-          <span className="text-sm font-medium tabular-nums text-gray-500">{events.length} événements</span>
+          <span className="text-sm font-medium tabular-nums text-gray-500">{filteredEvents.length} événements</span>
         </div>
 
         {isLoading ? (
@@ -181,13 +198,13 @@ export function UserDiscovery({ onEventSelect, onFavoritesChanged }: UserDiscove
            <div className="rounded-lg bg-red-50 p-4 text-center text-red-600">
              {error}
            </div>
-        ) : events.length === 0 ? (
+        ) : filteredEvents.length === 0 ? (
           <div className="rounded-lg bg-gray-50 p-8 text-center text-gray-500">
-             Aucun événement trouvé sur le serveur. (Base de données vide ?)
+             Aucun événement trouvé pour ce genre musical.
            </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-                  {events.map((event) => (
+                  {filteredEvents.map((event) => (
               <div
                 key={event.id}
                 className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
