@@ -31,8 +31,10 @@ import { billetService } from '../services/billetService';
 import { commandeService, StatutCommande } from '../services/commandeService';
 import { parseEventStartMs } from '../services/userTicketsService';
 import { FestigoLogo } from './festigo-logo';
+import { OrganizerSettings } from './organizer-settings';
+import { OrganizerCalendar } from './organizer-calendar';
 
-type OrganizerView = 'dashboard' | 'my-events' | 'edit-event';
+type OrganizerView = 'dashboard' | 'my-events' | 'edit-event' | 'calendar' | 'settings';
 
 /** Réponse plate de GET /api/billets (le typage `Billet` du service peut être trop strict). */
 type ApiBilletRow = {
@@ -77,7 +79,7 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   /** Somme des prix des billets vendus (commandes validées) pour les événements de cet organisateur. */
   const [estimatedRevenue, setEstimatedRevenue] = useState<number | null>(null);
-  const currentUser = authService.getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
   const organizerName = currentUser?.nomOrganisation || currentUser?.nom || 'Organisateur';
 
   const [availableArtists, setAvailableArtists] = useState<Artiste[]>([]);
@@ -603,6 +605,18 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
             <Ticket className="h-5 w-5 shrink-0 opacity-80" />
             <span>Créer un événement</span>
           </button>
+          <button
+            type="button"
+            onClick={() => { setView('calendar'); setEditingEventId(null); }}
+            className={navBtn(view === 'calendar')}
+          >
+            <Calendar className="h-5 w-5 shrink-0 opacity-80" />
+            <span>Calendrier</span>
+          </button>
+          <button type="button" onClick={() => setView('settings')} className={navBtn(view === 'settings')}>
+            <Settings className="h-5 w-5 shrink-0 opacity-80" />
+            <span>Paramètres</span>
+          </button>
         </nav>
 
         <div className="border-t border-gray-200 p-4">
@@ -622,10 +636,26 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 md:px-8">
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-              {view === 'dashboard' ? 'Vue d’ensemble' : (view === 'edit-event' ? 'Modification' : 'Événements')}
+              {view === 'dashboard'
+                ? 'Vue d’ensemble'
+                : view === 'edit-event'
+                  ? 'Modification'
+                  : view === 'calendar'
+                    ? 'Planning'
+                    : view === 'settings'
+                      ? 'Compte'
+                      : 'Événements'}
             </p>
             <h2 className="text-lg font-semibold text-gray-900">
-              {view === 'dashboard' ? 'Tableau de bord' : (view === 'edit-event' ? 'Modifier l\'événement' : 'Créer un événement')}
+              {view === 'dashboard'
+                ? 'Tableau de bord'
+                : view === 'edit-event'
+                  ? 'Modifier l\'événement'
+                  : view === 'calendar'
+                    ? 'Calendrier'
+                    : view === 'settings'
+                      ? 'Paramètres'
+                      : 'Créer un événement'}
             </h2>
           </div>
            
@@ -1219,6 +1249,17 @@ export function OrganizerDashboard({ onLogout }: OrganizerDashboardProps) {
                 </div>
               </div>
             </div>
+          )}
+
+          {view === 'calendar' && (
+            <OrganizerCalendar events={events} isLoading={isLoadingEvents} />
+          )}
+
+          {view === 'settings' && currentUser && (
+            <OrganizerSettings
+              currentUser={currentUser}
+              onUserUpdated={setCurrentUser}
+            />
           )}
         </div>
       </main>

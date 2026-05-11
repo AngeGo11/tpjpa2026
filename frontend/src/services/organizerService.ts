@@ -15,14 +15,14 @@ export const organizerService = {
    * Récupérer tous les organisateurs (GET /api/organizers)
    */
   getAllOrganizers: async (): Promise<Organizer[]> => {
-    return fetchApi<Organizer[]>('/organizers');
+    return fetchApi<Organizer[]>('/organizer/');
   },
 
   /**
    * Récupérer un organisateur par ID (GET /api/organizers/{id})
    */
   getOrganizerById: async (id: number): Promise<Organizer> => {
-    return fetchApi<Organizer>(`/organizers/${id}`);
+    return fetchApi<Organizer>(`/organizer/${id}`);
   },
 
   /**
@@ -31,7 +31,7 @@ export const organizerService = {
   createOrganizer: async (organizerData: Partial<Organizer>): Promise<Organizer> => {
     // Par défaut, s'assurer que le rôle est défini s'il n'est pas envoyé
     const data = { ...organizerData, role: Role.Organizer };
-    return fetchApi<Organizer>('/organizers', {
+    return fetchApi<Organizer>('/organizer/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -41,7 +41,7 @@ export const organizerService = {
    * Mettre à jour un organisateur (PUT /api/organizers/{id})
    */
   updateOrganizer: async (id: number, organizerData: Partial<Organizer>): Promise<Organizer> => {
-    return fetchApi<Organizer>(`/organizers/${id}`, {
+    return fetchApi<Organizer>(`/organizer/${id}`, {
       method: 'PUT',
       body: JSON.stringify(organizerData),
     });
@@ -51,7 +51,7 @@ export const organizerService = {
    * Supprimer un organisateur (DELETE /api/organizers/{id})
    */
   deleteOrganizer: async (id: number): Promise<void> => {
-    return fetchApi<void>(`/organizers/${id}`, {
+    return fetchApi<void>(`/organizer/${id}`, {
       method: 'DELETE',
     });
   },
