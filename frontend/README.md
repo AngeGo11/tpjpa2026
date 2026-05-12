@@ -35,27 +35,43 @@ L'application sera accessible sur [http://localhost:5173](http://localhost:5173)
 
 ---
 
-##  Architecture du dossier `src`
+## Architecture du dossier `src`
 
 ```text
 src/
-├── components/          # Composants React
-│   ├── ui/              # Composants génériques réutilisables (Boutons, Modals, etc.)
-│   ├── login-festive.tsx # Page de connexion
-│   ├── signup-festive.tsx# Page d'inscription
-│   ├── user-discovery.tsx# Affichage et recherche des concerts pour les fans
-│   ├── event-details.tsx # Page de détails d'un événement
-│   └── organizer-dashboard.tsx # Tableau de bord pour les organisateurs
-├── services/            # Logique de communication avec le backend (API REST)
-│   ├── api.ts           # Client HTTP de base (gestion du CORS, JSON, erreurs)
-│   ├── authService.ts   # Service de connexion/inscription (localStorage)
-│   ├── eventService.ts  # Appels API pour les événements
-│   ├── artisteService.ts# Appels API pour les artistes
-│   └── typeBilletService.ts # Appels API pour les tarifs
-├── styles/              # Fichiers CSS globaux
-│   └── globals.css      # Variables Tailwind et animations personnalisées
-├── App.tsx              # Composant racine (Routage et gestion des vues)
-└── Main.tsx             # Point d'entrée React
+├── App.tsx                      # Racine : vues fan / organisateur, login, détails événement, modales
+├── Main.tsx                     # Point d'entrée React (montage de l’app)
+├── components/
+│   ├── ui/                      # Primitives Radix + styles 
+│   ├── admin-event-validation.tsx
+│   ├── commande-recap.tsx       # Récapitulatif / finalisation de commande
+│   ├── event-details.tsx        # Fiche détaillée d’un événement (billets, favoris)
+│   ├── festigo-digital-pass.tsx # Pass / billet numérique
+│   ├── festigo-logo.tsx
+│   ├── login-festive.tsx        # Connexion
+│   ├── organizer-calendar.tsx   # Calendrier des événements organisateur
+│   ├── organizer-dashboard.tsx  # Tableau de bord organisateur (stats, graphiques)
+│   ├── organizer-settings.tsx   # Paramètres du compte organisateur
+│   ├── purchase-receipt.tsx     # Reçu d’achat
+│   ├── signup-festive.tsx       # Inscription
+│   ├── ticket-modal.tsx         # Modal choix quantités / réservation
+│   ├── user-app-navbar.tsx      # Barre de navigation vue fan
+│   ├── user-dashboard.tsx       # Espace fan : billets, favoris, commandes
+│   └── user-discovery.tsx       # Découverte / liste des concerts
+├── services/                    # Appels HTTP vers `/api`
+│   ├── api.ts                   # Client HTTP (CORS, JSON, erreurs)
+│   ├── authService.ts           # Login / register + persistance localStorage
+│   ├── artisteService.ts
+│   ├── billetService.ts
+│   ├── commandeService.ts
+│   ├── eventService.ts
+│   ├── favoriteService.ts       # Favoris événements (utilisateur)
+│   ├── organizerService.ts
+│   ├── typeBilletService.ts
+│   ├── userService.ts
+│   └── userTicketsService.ts    # Billets côté utilisateur
+└── styles/
+    └── globals.css              # Tailwind, variables et styles globaux
 ```
 
 ---
