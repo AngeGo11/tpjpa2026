@@ -1,12 +1,5 @@
-# FestiGo — Frontend
+# FestiGo — Frontend ( REACT)
 
-Application frontend React pour le projet de gestion de billetterie et d'événements musicaux (FestiGo).
-
-## 🚀 Démarrage rapide
-
-### Prérequis
-- [Node.js](https://nodejs.org/) (version 18 ou supérieure recommandée)
-- Un backend Java/JPA démarré sur `http://localhost:8080` (voir le README principal à la racine).
 
 ### Installation
 
@@ -42,7 +35,7 @@ L'application sera accessible sur [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 📂 Architecture du dossier `src`
+##  Architecture du dossier `src`
 
 ```text
 src/
@@ -77,7 +70,7 @@ La communication avec le backend Java s'effectue via le fichier `src/services/ap
 
 ---
 
-## 🎨 Fonctionnalités principales
+## Fonctionnalités principales
 
 1. **Espace Public / Fan :**
    - Inscription et connexion en tant que Fan.
