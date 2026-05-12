@@ -223,7 +223,7 @@ tpjpa2026/
     └── src/
         ├── App.tsx, Main.tsx
         ├── components/          # Pages et composants applicatifs (React)
-        │   ├── ui/              # Primitives réutilisables (Radix, style type shadcn : button, card, dialog, form, table, …)
+        │   ├── ui/              # Primitives réutilisables
         │   ├── admin-event-validation.tsx
         │   ├── commande-recap.tsx
         │   ├── event-details.tsx
@@ -269,5 +269,3 @@ tpjpa2026/
 **3)** Se connecter en tant qu'**organisateur** (`camille.robert@pulse-events.fr` / `passCamille123`, ou un autre compte créé par `JpaTest`, voir `src/main/java/jpa/JpaTest.java`), puis aller sur la page de **création d'événement** pour enregistrer un événement (nom, date/heure, lieu, artiste principal et invités). **NB :** Les photos tests pour les affiche d'évènement et les artistes,  se trouvent respectivement sous `frontend/images/artists_test` et `frontend/images/events_test`. Les évènements crées sont tous centralisé dans le calendrier des évènements (voir page calendrier).
 
 **4)** Se déconnecter, puis se connecter en tant que **fan** (`alice@mail.com` / `alice123`). Depuis la **découverte**, ouvrir un événement : tester les **favoris**, le bouton **« Prendre mes billets »** (choix des types et quantités), puis le **récapitulatif de commande** ; consulter aussi l'**espace compte** (billets, favoris, commandes) via la navigation fan (en haut à droite).
-
-**5)** Pour repartir d'une base vide : arrêter tous les services, supprimer ou vider le contenu du dossier `data/`, puis relancer `./init-project.sh`.
