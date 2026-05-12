@@ -223,13 +223,36 @@ tpjpa2026/
     └── src/
         ├── App.tsx, Main.tsx
         ├── components/          # Pages et composants applicatifs (React)
-        │   ├── organizer-dashboard.tsx
-        │   ├── user-discovery.tsx
+        │   ├── ui/              # Primitives réutilisables (Radix, style type shadcn : button, card, dialog, form, table, …)
+        │   ├── admin-event-validation.tsx
+        │   ├── commande-recap.tsx
         │   ├── event-details.tsx
+        │   ├── festigo-digital-pass.tsx
+        │   ├── festigo-logo.tsx
         │   ├── login-festive.tsx
-        │   └── signup-festive.tsx
-        ├── services/            # Clients HTTP par ressource (connexion API)
-        └── styles/              # Tailwind / globals
+        │   ├── organizer-calendar.tsx
+        │   ├── organizer-dashboard.tsx
+        │   ├── organizer-settings.tsx
+        │   ├── purchase-receipt.tsx
+        │   ├── signup-festive.tsx
+        │   ├── ticket-modal.tsx
+        │   ├── user-app-navbar.tsx
+        │   ├── user-dashboard.tsx
+        │   └── user-discovery.tsx
+        ├── services/            # Clients HTTP (connexion API)
+        │   ├── api.ts
+        │   ├── artisteService.ts
+        │   ├── authService.ts
+        │   ├── billetService.ts
+        │   ├── commandeService.ts
+        │   ├── eventService.ts
+        │   ├── favoriteService.ts
+        │   ├── organizerService.ts
+        │   ├── typeBilletService.ts
+        │   ├── userService.ts
+        │   └── userTicketsService.ts
+        └── styles/
+            └── globals.css      # Tailwind / styles globaux
 ```
 
 
