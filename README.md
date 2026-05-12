@@ -1,4 +1,4 @@
-# Documentation technique — Backend Billetterie / Gestion d'événements
+# Documentation technique  FestiGo: Plateforme de Billetterie / Gestion d'événements
 
 ---
 
@@ -56,7 +56,7 @@ Ces relations sont en cascade (CascadeType.ALL) et orphelin-suppression (orphanR
 
 ### 2.6 Favoris (Users ↔ Events)
 
-Un utilisateur peut **mettre en favori** un événement. La relation est portée par une table d'association (jointure `users_favorite_events`) côté `Users` (relation **ManyToMany** unidirectionnelle vers `Events`). Le `UsersDAO` expose les méthodes métier `getFavoriteEvents`, `hasFavoriteEvent`, `addFavoriteEvent`, `removeFavoriteEvent`, utilisées par les endpoints `/api/users/{userId}/favorites/events/...`.
+Un utilisateur peut **mettre en favori** un événement. La relation est portée par une table d'association (jointure `user_event_favorites`) côté `Users` (relation **ManyToMany** vers `Events`, côté inverse `favoritedByUsers` sur `Events`). Le `UsersDAO` expose les méthodes métier `getFavoriteEvents`, `hasFavoriteEvent`, `addFavoriteEvent`, `removeFavoriteEvent`, utilisées par les endpoints `/api/users/{userId}/favorites/events/...`.
 
 ### 2.7 Autres points
 
@@ -68,7 +68,7 @@ Un utilisateur peut **mettre en favori** un événement. La relation est portée
 
 ## 3. Diagramme de Classes
 
-Le diagramme de classe (`diagramme_uml.png`) représente les entités JPA principales et leurs relations (cardinalités et héritage).
+Le diagramme de classe (`diagramme_uml_festigo.png`) représente les entités JPA principales et leurs relations (cardinalités et héritage).
 
 **Entités** : sept classes sont représentées — `Users`, `Organizer`, `Artiste`, `Events`, `TypeBillet`, `Commande`, `Billets`. Chaque entité affiche ses attributs principaux (identifiant, champs métier, énumérations).
 
@@ -79,6 +79,7 @@ Le diagramme de classe (`diagramme_uml.png`) représente les entités JPA princi
 - **Organizer 1 → n Events** : un organisateur gère plusieurs événements ; chaque événement a un seul organisateur.
 - **Events n → 1 Artiste** (artiste principal) : chaque événement a un artiste principal ; un artiste peut être tête d’affiche de plusieurs événements.
 - **Events n ↔ n Artiste** (invités) : un événement peut avoir plusieurs invités, un artiste peut être invité à plusieurs événements (table d’association `event_guests`).
+- **Users n ↔ n Events** (favoris) : un utilisateur peut mettre plusieurs événements en favori ; un événement peut être favori de plusieurs utilisateurs (table d’association `user_event_favorites`).
 - **TypeBillet n → 1 Events** : chaque type de billet est rattaché à un événement ; un événement a plusieurs types de billets.
 - **Commande 1 → n Billets** : une commande contient plusieurs billets ; chaque billet appartient à une commande.
 - **Billets n → 1 TypeBillet** : chaque billet est d’un type donné ; un type de billet peut être associé à plusieurs billets.
@@ -230,3 +231,20 @@ tpjpa2026/
         ├── services/            # Clients HTTP par ressource (connexion API)
         └── styles/              # Tailwind / globals
 ```
+
+
+---
+
+## 9. Instructions pour les tests
+
+À l'attention du professeur, pour les tests :
+
+**1)** Exécuter d'abord `./init-project.sh` pour initialiser la base de données avec des utilisateurs (fans / organisateurs), des événements, des types de billets, des commandes et des billets de démonstration.
+
+**2)** Si les dépendances du frontend ne sont pas encore installées : `cd frontend && npm install`. Ensuite revenez à la racine du projet et exécuter `./start.sh` pour lancer les différents serveurs (HSQLDB, API REST, interface graphique HSQLDB, Vite), puis accéder au frontend via http://localhost:5173/ (ou l'URL affichée dans le terminal).
+
+**3)** Se connecter en tant qu'**organisateur** (`camille.robert@pulse-events.fr` / `passCamille123`, ou un autre compte créé par `JpaTest`, voir `src/main/java/jpa/JpaTest.java`), puis aller sur la page de **création d'événement** pour enregistrer un événement (nom, date/heure, lieu, artiste principal et invités). **NB :** Les photos tests pour les affiche d'évènement et les artistes,  se trouvent respectivement sous `frontend/images/artists_test` et `frontend/images/events_test`. Les évènements crées sont tous centralisé dans le calendrier des évènements (voir page calendrier).
+
+**4)** Se déconnecter, puis se connecter en tant que **fan** (`alice@mail.com` / `alice123`). Depuis la **découverte**, ouvrir un événement : tester les **favoris**, le bouton **« Prendre mes billets »** (choix des types et quantités), puis le **récapitulatif de commande** ; consulter aussi l'**espace compte** (billets, favoris, commandes) via la navigation fan (en haut à droite).
+
+**5)** Pour repartir d'une base vide : arrêter tous les services, supprimer ou vider le contenu du dossier `data/`, puis relancer `./init-project.sh`.

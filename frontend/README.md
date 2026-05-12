@@ -22,7 +22,7 @@ L'application sera accessible sur [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 🛠️ Technologies utilisées
+## Technologies utilisées
 
 - **Framework :** React 18
 - **Langage :** TypeScript
@@ -60,7 +60,7 @@ src/
 
 ---
 
-## 🔌 Connexion avec le Backend
+##  Connexion avec le Backend
 
 La communication avec le backend Java s'effectue via le fichier `src/services/api.ts`.
 
@@ -79,6 +79,7 @@ La communication avec le backend Java s'effectue via le fichier `src/services/ap
    
 2. **Espace Organisateur :**
    - Inscription et connexion en tant qu'Organisateur.
+   - Calendrier récapitulatif de tous les évènements crées par l'organisateur connecté.
    - Tableau de bord avec statistiques (calculées dynamiquement selon les événements créés).
    - Création d'événements (avec création automatique des artistes principaux et invités dans la base de données).
    - Modification et suppression des événements existants.

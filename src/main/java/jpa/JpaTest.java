@@ -63,16 +63,16 @@ public class JpaTest {
     // Dans JpaTest.insertData()
     private void insertArtistes() {
         if (manager.createQuery("SELECT a FROM Artiste a", Artiste.class).getResultList().isEmpty()) {
-            manager.persist(new Artiste("Aya Nakamura", "https://example.com/img/aya.jpg"));
-            manager.persist(new Artiste("Damso", "https://example.com/img/damso.jpg"));
-            manager.persist(new Artiste("DJ Snake", "https://example.com/img/djsnake.jpg"));
-            manager.persist(new Artiste("Stromae", "https://example.com/img/stromae.jpg"));
-            manager.persist(new Artiste("Ninho", "https://example.com/img/ninho.jpg"));
-            manager.persist(new Artiste("The Weeknd", "https://example.com/img/weeknd.jpg"));
-            manager.persist(new Artiste("Daft Punk", "https://example.com/img/daftpunk.jpg"));
-            manager.persist(new Artiste("Rihanna", "https://example.com/img/rihanna.jpg"));
-            manager.persist(new Artiste("Soolking", "https://example.com/img/soolking.jpg"));
-            manager.persist(new Artiste("Kaaris", "https://example.com/img/kaaris.jpg"));
+            manager.persist(new Artiste("Aya Nakamura", "https://i.scdn.co/image/ab6761610000e5eb1b1d1a60a2e95efc4eea8259"));
+            manager.persist(new Artiste("Damso", "https://www.booska-p.com/wp-content/uploads/2022/05/damso-conseil-artiste-1024x750.jpg"));
+            manager.persist(new Artiste("DJ Snake", "https://upload.wikimedia.org/wikipedia/commons/2/28/DJ_Snake_Paris_02.2020.jpg"));
+            manager.persist(new Artiste("Stromae", "https://www.booska-p.com/wp-content/uploads/2022/03/Stromae-Multitude-Visu-News.jpg"));
+            manager.persist(new Artiste("Ninho", "https://media.gqmagazine.fr/photos/649d9a7dce0c708b2278d7ff/1:1/w_1600%2Cc_limit/Ninho-OMEGA_MYKONOS_pierremouton-1840082.jpg"));
+            manager.persist(new Artiste("The Weeknd", "https://www.booska-p.com/wp-content/uploads/2022/08/The-Weeknd-Visu-News.jpg"));
+            manager.persist(new Artiste("Daft Punk", "https://www.booska-p.com/wp-content/uploads/2021/07/daft-punk-aurait-dit-non-un-gros-ch-que-649.jpg"));
+            manager.persist(new Artiste("Rihanna", "https://startitkbs.org/wp-content/uploads/2024/05/rihanna.jpg"));
+            manager.persist(new Artiste("Soolking", "https://www.radiofrance.fr/pikapi/images/05f7b4fa-3081-4482-b02f-6d38b0dd0359/1200x680"));
+            manager.persist(new Artiste("Kaaris", "https://www.booska-p.com/wp-content/uploads/2023/08/kaaris-news-visu-1024x750.jpg"));
 
             System.out.println("Artistes : 10 artistes créés.");
         } else {
@@ -148,7 +148,7 @@ public class JpaTest {
         Artiste guest1 = artistes.get(2);
         Events e1 = new Events(
                 "Summer Vibes",
-                "https://example.com/img/event1.jpg",
+                "https://img.freepik.com/vecteurs-libre/illustration-ambiance-estivale-plate_23-2149410479.jpg?semt=ais_hybrid&w=740&q=80",
                 "Accor Arena, Paris",
                 toDate(2026, 6, 15),
                 Time.valueOf(LocalTime.of(20, 0)),
@@ -165,7 +165,7 @@ public class JpaTest {
         Artiste guest2 = artistes.get(3);
         Events e2 = new Events(
                 "Rap Night",
-                "https://example.com/img/event2.jpg",
+                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_ilBQY99NlFUWSPsbEH1gAwX8WTS6MK7IhQ&s",
                 "Zénith, Lyon",
                 toDate(2026, 7, 2),
                 Time.valueOf(LocalTime.of(21, 0)),
